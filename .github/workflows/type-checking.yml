@@ -1,0 +1,24 @@
+name: Type Checking
+
+on: [push, pull_request]
+
+jobs:
+  type-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies with lock file
+        run: uv sync --all-extras
+
+      - name: Run mypy
+        run: uv run mypy fastroai --config-file pyproject.toml
