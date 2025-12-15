@@ -8,7 +8,7 @@
 
 ## What is FastroAI?
 
-FastroAI is a thin layer on top of [PydanticAI](https://ai.pydantic.dev/) that adds production essentials: cost tracking, multi-step pipelines, and tools that handle failures gracefully.
+FastroAI is a thin layer on top of [PydanticAI](https://ai.pydantic.dev/) that adds production essentials: cost tracking, multi-step pipelines, and tools that handle failures gracefully. We built it for ourselves but you're free to use.
 
 PydanticAI is excellent for building AI agents. But when you start building real applications, you run into the same problems repeatedly. How much did that request cost? PydanticAI gives you token counts, but you need to look up pricing and calculate costs yourself. Need to run multiple AI steps, some in parallel (but don't want to define graphs for everything)? You end up writing your own orchestration logic.
 
