@@ -13,8 +13,13 @@ from fastroai.pipelines import (
     BaseStep,
     ConversationState,
     ConversationStatus,
+    CostBudgetExceededError,
+    FastroAIError,
     Pipeline,
+    PipelineConfig,
     PipelineUsage,
+    PipelineValidationError,
+    StepConfig,
     StepContext,
     StepExecutionError,
     StepUsage,
@@ -92,6 +97,111 @@ class TestStepUsage:
         assert combined.cost_microcents == 525
         assert combined.processing_time_ms == 800
         assert combined.model == "gpt-4o"  # First non-None model
+
+
+# ============================================================================
+# Config Tests
+# ============================================================================
+
+
+class TestStepConfig:
+    """Tests for StepConfig."""
+
+    def test_default_values(self) -> None:
+        """Should have sensible defaults."""
+        config = StepConfig()
+        assert config.timeout is None
+        assert config.retries == 0
+        assert config.retry_delay == 1.0
+        assert config.cost_budget is None
+
+    def test_custom_values(self) -> None:
+        """Should accept custom values."""
+        config = StepConfig(
+            timeout=30.0,
+            retries=3,
+            retry_delay=2.0,
+            cost_budget=10_000_000,
+        )
+        assert config.timeout == 30.0
+        assert config.retries == 3
+        assert config.retry_delay == 2.0
+        assert config.cost_budget == 10_000_000
+
+
+class TestPipelineConfig:
+    """Tests for PipelineConfig."""
+
+    def test_default_values(self) -> None:
+        """Should have sensible defaults."""
+        config = PipelineConfig()
+        # Inherited from StepConfig
+        assert config.timeout is None
+        assert config.retries == 0
+        assert config.retry_delay == 1.0
+        assert config.cost_budget is None
+        # PipelineConfig specific
+        assert config.trace is True
+        assert config.on_error == "fail"
+
+    def test_custom_values(self) -> None:
+        """Should accept custom values."""
+        config = PipelineConfig(
+            timeout=60.0,
+            retries=2,
+            trace=False,
+            on_error="continue",
+        )
+        assert config.timeout == 60.0
+        assert config.retries == 2
+        assert config.trace is False
+        assert config.on_error == "continue"
+
+    def test_inherits_from_step_config(self) -> None:
+        """PipelineConfig should be a StepConfig."""
+        config = PipelineConfig()
+        assert isinstance(config, StepConfig)
+
+
+# ============================================================================
+# Error Hierarchy Tests
+# ============================================================================
+
+
+class TestErrorHierarchy:
+    """Tests for FastroAI error hierarchy."""
+
+    def test_fastroai_error_is_base(self) -> None:
+        """FastroAIError should be the base for all errors."""
+        assert issubclass(PipelineValidationError, FastroAIError)
+        assert issubclass(StepExecutionError, FastroAIError)
+        assert issubclass(CostBudgetExceededError, FastroAIError)
+
+    def test_step_execution_error(self) -> None:
+        """StepExecutionError should have step_id and original_error."""
+        original = ValueError("something failed")
+        error = StepExecutionError("my_step", original)
+        assert error.step_id == "my_step"
+        assert error.original_error is original
+        assert "my_step" in str(error)
+        assert isinstance(error, FastroAIError)
+
+    def test_cost_budget_exceeded_error(self) -> None:
+        """CostBudgetExceededError should have budget and actual."""
+        error = CostBudgetExceededError(budget=1000, actual=1500, step_id="expensive_step")
+        assert error.budget_microcents == 1000
+        assert error.actual_microcents == 1500
+        assert error.step_id == "expensive_step"
+        assert "1500" in str(error)
+        assert "1000" in str(error)
+        assert "expensive_step" in str(error)
+        assert isinstance(error, FastroAIError)
+
+    def test_cost_budget_exceeded_error_no_step(self) -> None:
+        """CostBudgetExceededError without step_id."""
+        error = CostBudgetExceededError(budget=1000, actual=1500)
+        assert error.step_id is None
+        assert "in step" not in str(error)
 
 
 # ============================================================================
@@ -219,6 +329,290 @@ class TestStepContext:
         assert context.get_dependency_or_none("a") == "value_a"
         assert context.get_dependency_or_none("b") is None
 
+    def test_usage_starts_at_zero(self) -> None:
+        """Context should start with zero usage."""
+        context = StepContext(
+            step_id="test",
+            inputs={},
+            deps=None,
+            step_outputs={},
+        )
+        assert context.usage.input_tokens == 0
+        assert context.usage.output_tokens == 0
+        assert context.usage.cost_microcents == 0
+
+    async def test_ctx_run_accumulates_usage(self) -> None:
+        """ctx.run() should accumulate usage across multiple calls."""
+        agent = FastroAgent(model="test", system_prompt="Test")
+
+        mock_response1 = ChatResponse(
+            output="First",
+            content="First",
+            model="gpt-4o",
+            input_tokens=10,
+            output_tokens=5,
+            total_tokens=15,
+            cost_microcents=75,
+            processing_time_ms=100,
+        )
+        mock_response2 = ChatResponse(
+            output="Second",
+            content="Second",
+            model="gpt-4o",
+            input_tokens=20,
+            output_tokens=10,
+            total_tokens=30,
+            cost_microcents=150,
+            processing_time_ms=200,
+        )
+
+        context = StepContext(
+            step_id="test",
+            inputs={},
+            deps=None,
+            step_outputs={},
+        )
+
+        with patch.object(agent, "run", new_callable=AsyncMock) as mock_run:
+            mock_run.side_effect = [mock_response1, mock_response2]
+
+            response1 = await context.run(agent, "First message")
+            response2 = await context.run(agent, "Second message")
+
+        assert response1.output == "First"
+        assert response2.output == "Second"
+
+        # Usage should be accumulated
+        assert context.usage.input_tokens == 30  # 10 + 20
+        assert context.usage.output_tokens == 15  # 5 + 10
+        assert context.usage.cost_microcents == 225  # 75 + 150
+        assert context.usage.processing_time_ms == 300  # 100 + 200
+
+    async def test_ctx_run_forwards_deps_and_tracer(self) -> None:
+        """ctx.run() should forward deps and tracer to agent."""
+        agent = FastroAgent(model="test", system_prompt="Test")
+
+        mock_response = ChatResponse(
+            output="Result",
+            content="Result",
+            model="test",
+            input_tokens=10,
+            output_tokens=5,
+            total_tokens=15,
+            cost_microcents=75,
+            processing_time_ms=100,
+        )
+
+        deps = {"db": "session", "user_id": 123}
+        context = StepContext(
+            step_id="test",
+            inputs={},
+            deps=deps,
+            step_outputs={},
+            tracer=None,
+        )
+
+        with patch.object(agent, "run", new_callable=AsyncMock) as mock_run:
+            mock_run.return_value = mock_response
+
+            await context.run(agent, "Hello")
+
+            mock_run.assert_called_once()
+            call_kwargs = mock_run.call_args[1]
+            assert call_kwargs["deps"] == deps
+            assert call_kwargs["tracer"] is None
+
+    def test_context_accepts_config(self) -> None:
+        """Should accept config parameter."""
+        config = StepConfig(timeout=30.0, retries=2, cost_budget=100000)
+        context = StepContext(
+            step_id="test",
+            inputs={},
+            deps=None,
+            step_outputs={},
+            config=config,
+        )
+        assert context.config.timeout == 30.0
+        assert context.config.retries == 2
+        assert context.config.cost_budget == 100000
+
+    def test_context_default_config(self) -> None:
+        """Should have default config if not provided."""
+        context = StepContext(
+            step_id="test",
+            inputs={},
+            deps=None,
+            step_outputs={},
+        )
+        assert context.config.timeout is None
+        assert context.config.retries == 0
+        assert context.config.cost_budget is None
+
+    async def test_ctx_run_budget_exceeded_raises(self) -> None:
+        """Should raise CostBudgetExceededError when budget is exceeded."""
+        agent = FastroAgent(model="test", system_prompt="Test")
+
+        mock_response = ChatResponse(
+            output="Result",
+            content="Result",
+            model="test",
+            input_tokens=10,
+            output_tokens=5,
+            total_tokens=15,
+            cost_microcents=100,
+            processing_time_ms=50,
+        )
+
+        # Set budget to 150 microcents
+        config = StepConfig(cost_budget=150)
+        context = StepContext(
+            step_id="test",
+            inputs={},
+            deps=None,
+            step_outputs={},
+            config=config,
+        )
+
+        with patch.object(agent, "run", new_callable=AsyncMock) as mock_run:
+            mock_run.return_value = mock_response
+
+            # First call succeeds (usage 0 < 150)
+            await context.run(agent, "First")
+            assert context.usage.cost_microcents == 100
+
+            # Second call succeeds (usage 100 < 150)
+            await context.run(agent, "Second")
+            assert context.usage.cost_microcents == 200
+
+            # Third call should raise (usage 200 >= 150)
+            with pytest.raises(CostBudgetExceededError) as exc_info:
+                await context.run(agent, "Third")
+
+            assert exc_info.value.budget_microcents == 150
+            assert exc_info.value.actual_microcents == 200
+            assert exc_info.value.step_id == "test"
+
+    async def test_ctx_run_timeout(self) -> None:
+        """Should raise TimeoutError when timeout exceeded."""
+        agent = FastroAgent(model="test", system_prompt="Test")
+
+        async def slow_agent_run(*args, **kwargs):
+            await asyncio.sleep(1.0)  # Slow response
+
+        context = StepContext(
+            step_id="test",
+            inputs={},
+            deps=None,
+            step_outputs={},
+            config=StepConfig(timeout=0.05),  # 50ms timeout
+        )
+
+        with patch.object(agent, "run", side_effect=slow_agent_run), pytest.raises(asyncio.TimeoutError):
+            await context.run(agent, "Hello")
+
+    async def test_ctx_run_retries_on_failure(self) -> None:
+        """Should retry on failure with exponential backoff."""
+        agent = FastroAgent(model="test", system_prompt="Test")
+
+        mock_response = ChatResponse(
+            output="Success",
+            content="Success",
+            model="test",
+            input_tokens=10,
+            output_tokens=5,
+            total_tokens=15,
+            cost_microcents=75,
+            processing_time_ms=100,
+        )
+
+        call_count = 0
+
+        async def failing_then_success(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise RuntimeError("Transient failure")
+            return mock_response
+
+        # Config with 2 retries and short delay for testing
+        config = StepConfig(retries=2, retry_delay=0.01)
+        context = StepContext(
+            step_id="test",
+            inputs={},
+            deps=None,
+            step_outputs={},
+            config=config,
+        )
+
+        with patch.object(agent, "run", side_effect=failing_then_success):
+            result = await context.run(agent, "Hello")
+
+        assert result.output == "Success"
+        assert call_count == 3  # 1 initial + 2 retries
+
+    async def test_ctx_run_retries_exhausted_raises(self) -> None:
+        """Should raise after all retries exhausted."""
+        agent = FastroAgent(model="test", system_prompt="Test")
+
+        async def always_fails(*args, **kwargs):
+            raise RuntimeError("Persistent failure")
+
+        config = StepConfig(retries=2, retry_delay=0.01)
+        context = StepContext(
+            step_id="test",
+            inputs={},
+            deps=None,
+            step_outputs={},
+            config=config,
+        )
+
+        with (
+            patch.object(agent, "run", side_effect=always_fails),
+            pytest.raises(RuntimeError, match="Persistent failure"),
+        ):
+            await context.run(agent, "Hello")
+
+    async def test_ctx_run_per_call_overrides(self) -> None:
+        """Should allow per-call timeout/retries overrides."""
+        agent = FastroAgent(model="test", system_prompt="Test")
+
+        mock_response = ChatResponse(
+            output="Result",
+            content="Result",
+            model="test",
+            input_tokens=10,
+            output_tokens=5,
+            total_tokens=15,
+            cost_microcents=75,
+            processing_time_ms=100,
+        )
+
+        call_count = 0
+
+        async def failing_once(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise RuntimeError("First failure")
+            return mock_response
+
+        # Config has no retries
+        config = StepConfig(retries=0)
+        context = StepContext(
+            step_id="test",
+            inputs={},
+            deps=None,
+            step_outputs={},
+            config=config,
+        )
+
+        with patch.object(agent, "run", side_effect=failing_once):
+            # Per-call override: retries=1
+            result = await context.run(agent, "Hello", retries=1)
+
+        assert result.output == "Result"
+        assert call_count == 2  # 1 initial + 1 retry
+
 
 # ============================================================================
 # BaseStep Tests
@@ -268,7 +662,7 @@ class TestPipelineExecutor:
             async def execute(self, context: StepContext[None]) -> str:
                 return "result"
 
-        with pytest.raises(ValueError, match="depends on unknown"):
+        with pytest.raises(PipelineValidationError, match="depends on unknown"):
             Pipeline(
                 name="test",
                 steps={"a": SimpleStep()},
@@ -282,7 +676,7 @@ class TestPipelineExecutor:
             async def execute(self, context: StepContext[None]) -> str:
                 return "result"
 
-        with pytest.raises(ValueError, match="Dependency for unknown step"):
+        with pytest.raises(PipelineValidationError, match="Dependency for unknown step"):
             Pipeline(
                 name="test",
                 steps={"a": SimpleStep()},
@@ -296,7 +690,7 @@ class TestPipelineExecutor:
             async def execute(self, context: StepContext[None]) -> str:
                 return "result"
 
-        with pytest.raises(ValueError, match="cycle"):
+        with pytest.raises(PipelineValidationError, match="cycle"):
             Pipeline(
                 name="test",
                 steps={"a": SimpleStep(), "b": SimpleStep()},
@@ -513,7 +907,7 @@ class TestPipeline:
             async def execute(self, context: StepContext[None]) -> str:
                 return "b"
 
-        with pytest.raises(ValueError, match="Multiple terminal steps"):
+        with pytest.raises(PipelineValidationError, match="Multiple terminal steps"):
             Pipeline(
                 name="test",
                 steps={"a": StepA(), "b": StepB()},
@@ -559,7 +953,6 @@ class TestAgentAsStep:
 
         assert isinstance(step, AgentStepWrapper)
         assert step.agent is agent
-        assert step.last_usage is None
 
     def test_as_step_with_static_prompt(self) -> None:
         """Should work with static string prompt."""
@@ -575,8 +968,8 @@ class TestAgentAsStep:
 
         assert isinstance(step, AgentStepWrapper)
 
-    async def test_as_step_tracks_usage(self) -> None:
-        """Should track usage after execute()."""
+    async def test_as_step_tracks_usage_in_context(self) -> None:
+        """Should track usage in context.usage after execute()."""
         agent = FastroAgent(model="test", system_prompt="Test")
         step = agent.as_step(lambda ctx: "Hello")
 
@@ -604,9 +997,9 @@ class TestAgentAsStep:
             result = await step.execute(context)
 
         assert result == "Hello!"
-        assert step.last_usage is not None
-        assert step.last_usage.cost_microcents == 75
-        assert step.last_usage.input_tokens == 10
+        # Usage is now tracked in context.usage, not step.last_usage
+        assert context.usage.cost_microcents == 75
+        assert context.usage.input_tokens == 10
 
     async def test_as_step_forwards_deps_and_tracer(self) -> None:
         """Should forward context.deps and context.tracer to agent."""
@@ -699,3 +1092,410 @@ class TestBasePipeline:
 
         with pytest.raises(ValueError, match="Unknown pipeline"):
             await router.execute({}, None)
+
+
+# ============================================================================
+# @step Decorator Tests
+# ============================================================================
+
+
+class TestStepDecorator:
+    """Tests for the @step decorator."""
+
+    def test_decorator_without_args(self) -> None:
+        """Should work as @step without parentheses."""
+        from fastroai.pipelines import step
+
+        @step
+        async def my_step(ctx: StepContext[None]) -> str:
+            return "result"
+
+        # Should be a BaseStep
+        assert isinstance(my_step, BaseStep)
+        # Should have default config
+        assert my_step.config.timeout is None
+        assert my_step.config.retries == 0
+
+    def test_decorator_with_args(self) -> None:
+        """Should work as @step(timeout=30) with args."""
+        from fastroai.pipelines import step
+
+        @step(timeout=30.0, retries=2, retry_delay=2.0, cost_budget=100000)
+        async def my_step(ctx: StepContext[None]) -> str:
+            return "result"
+
+        # Should have config from decorator
+        assert my_step.config.timeout == 30.0
+        assert my_step.config.retries == 2
+        assert my_step.config.retry_delay == 2.0
+        assert my_step.config.cost_budget == 100000
+
+    async def test_async_function_step(self) -> None:
+        """Should execute async functions."""
+        from fastroai.pipelines import step
+
+        @step
+        async def async_step(ctx: StepContext[None]) -> str:
+            await asyncio.sleep(0.001)
+            return "async_result"
+
+        context = StepContext(
+            step_id="test",
+            inputs={},
+            deps=None,
+            step_outputs={},
+        )
+
+        result = await async_step.execute(context)
+        assert result == "async_result"
+
+    async def test_sync_function_step(self) -> None:
+        """Should execute sync functions."""
+        from fastroai.pipelines import step
+
+        @step
+        def sync_step(ctx: StepContext[None]) -> str:
+            return "sync_result"
+
+        context = StepContext(
+            step_id="test",
+            inputs={},
+            deps=None,
+            step_outputs={},
+        )
+
+        result = await sync_step.execute(context)
+        assert result == "sync_result"
+
+    async def test_step_in_pipeline(self) -> None:
+        """Should work alongside class-based steps in Pipeline."""
+        from fastroai.pipelines import step
+
+        @step
+        async def step_a(ctx: StepContext[None]) -> str:
+            return "a_done"
+
+        @step
+        async def step_b(ctx: StepContext[None]) -> str:
+            a_result = ctx.get_dependency("a")
+            return f"{a_result}_b_done"
+
+        pipeline = Pipeline(
+            name="test",
+            steps={"a": step_a, "b": step_b},
+            dependencies={"b": ["a"]},
+        )
+
+        result = await pipeline.execute({}, None)
+        assert result.output == "a_done_b_done"
+
+    async def test_step_with_ctx_run(self) -> None:
+        """Should work with ctx.run() for agent calls."""
+        from fastroai.pipelines import step
+
+        agent = FastroAgent(model="test", system_prompt="Test")
+
+        @step
+        async def agent_step(ctx: StepContext[None]) -> str:
+            response = await ctx.run(agent, "Hello")
+            return response.output
+
+        mock_response = ChatResponse(
+            output="Hello!",
+            content="Hello!",
+            model="test",
+            input_tokens=10,
+            output_tokens=5,
+            total_tokens=15,
+            cost_microcents=75,
+            processing_time_ms=100,
+        )
+
+        with patch.object(agent, "run", new_callable=AsyncMock) as mock_run:
+            mock_run.return_value = mock_response
+
+            context = StepContext(
+                step_id="test",
+                inputs={},
+                deps=None,
+                step_outputs={},
+            )
+            result = await agent_step.execute(context)
+
+        assert result == "Hello!"
+        assert context.usage.cost_microcents == 75
+
+    async def test_step_can_access_inputs(self) -> None:
+        """Should be able to access inputs via context."""
+        from fastroai.pipelines import step
+
+        @step
+        async def input_step(ctx: StepContext[None]) -> str:
+            name = ctx.get_input("name")
+            return f"Hello, {name}!"
+
+        context = StepContext(
+            step_id="test",
+            inputs={"name": "World"},
+            deps=None,
+            step_outputs={},
+        )
+
+        result = await input_step.execute(context)
+        assert result == "Hello, World!"
+
+
+# ============================================================================
+# Pipeline Config Inheritance Tests
+# ============================================================================
+
+
+class TestPipelineConfigInheritance:
+    """Tests for Pipeline config inheritance."""
+
+    async def test_pipeline_accepts_config(self) -> None:
+        """Should accept config parameter."""
+
+        class SimpleStep(BaseStep[None, str]):
+            async def execute(self, context: StepContext[None]) -> str:
+                # Config should be accessible via context
+                assert context.config.timeout == 30.0
+                assert context.config.retries == 2
+                return "done"
+
+        pipeline = Pipeline(
+            name="test",
+            steps={"simple": SimpleStep()},
+            config=PipelineConfig(timeout=30.0, retries=2),
+        )
+
+        result = await pipeline.execute({}, None)
+        assert result.output == "done"
+
+    async def test_step_configs_override_pipeline(self) -> None:
+        """step_configs should override pipeline config."""
+
+        class SimpleStep(BaseStep[None, str]):
+            async def execute(self, context: StepContext[None]) -> str:
+                return f"timeout={context.config.timeout}"
+
+        pipeline = Pipeline(
+            name="test",
+            steps={"a": SimpleStep(), "b": SimpleStep()},
+            dependencies={"b": ["a"]},  # b depends on a
+            config=PipelineConfig(timeout=10.0),
+            step_configs={"b": StepConfig(timeout=60.0)},  # Override for b only
+        )
+
+        result = await pipeline.execute({}, None)
+
+        # Step a uses pipeline default, step b uses override
+        assert result.step_outputs["a"] == "timeout=10.0"
+        assert result.step_outputs["b"] == "timeout=60.0"
+
+    async def test_step_class_config_used(self) -> None:
+        """Step class config should be used when no pipeline config."""
+        from fastroai.pipelines import step
+
+        @step(timeout=45.0, retries=3)
+        async def configured_step(ctx: StepContext[None]) -> str:
+            return f"timeout={ctx.config.timeout},retries={ctx.config.retries}"
+
+        pipeline = Pipeline(
+            name="test",
+            steps={"configured": configured_step},
+        )
+
+        result = await pipeline.execute({}, None)
+        assert result.output == "timeout=45.0,retries=3"
+
+    async def test_config_inheritance_order(self) -> None:
+        """Config inheritance: pipeline < step class < step_configs."""
+        from fastroai.pipelines import step
+
+        @step(timeout=20.0)  # Step class config
+        async def my_step(ctx: StepContext[None]) -> str:
+            return f"timeout={ctx.config.timeout}"
+
+        # Pipeline config (lowest priority)
+        # Step class has timeout=20.0 (overrides pipeline)
+        # step_configs has timeout=30.0 (highest priority)
+        pipeline = Pipeline(
+            name="test",
+            steps={"my": my_step},
+            config=PipelineConfig(timeout=10.0),  # Lowest priority
+            step_configs={"my": StepConfig(timeout=30.0)},  # Highest priority
+        )
+
+        result = await pipeline.execute({}, None)
+        # step_configs should win
+        assert result.output == "timeout=30.0"
+
+    async def test_pipeline_config_cost_budget(self) -> None:
+        """Pipeline config cost_budget should apply to steps."""
+        agent = FastroAgent(model="test", system_prompt="Test")
+
+        class BudgetStep(BaseStep[None, str]):
+            async def execute(self, context: StepContext[None]) -> str:
+                # First call: usage=0 < 150, proceeds. After: usage=100
+                await context.run(agent, "First")
+                # Second call: usage=100 < 150, proceeds. After: usage=200
+                await context.run(agent, "Second")
+                # Third call: usage=200 >= 150, raises CostBudgetExceededError
+                await context.run(agent, "Third")
+                return "done"
+
+        mock_response = ChatResponse(
+            output="Result",
+            content="Result",
+            model="test",
+            input_tokens=10,
+            output_tokens=5,
+            total_tokens=15,
+            cost_microcents=100,  # Each call costs 100
+            processing_time_ms=50,
+        )
+
+        pipeline = Pipeline(
+            name="test",
+            steps={"budget": BudgetStep()},
+            config=PipelineConfig(cost_budget=150),  # Budget of 150
+        )
+
+        with patch.object(agent, "run", new_callable=AsyncMock) as mock_run:
+            mock_run.return_value = mock_response
+
+            # Should raise StepExecutionError wrapping CostBudgetExceededError
+            with pytest.raises(StepExecutionError) as exc_info:
+                await pipeline.execute({}, None)
+
+            assert isinstance(exc_info.value.original_error, CostBudgetExceededError)
+            assert exc_info.value.original_error.budget_microcents == 150
+            assert exc_info.value.original_error.actual_microcents == 200
+
+    async def test_no_config_uses_defaults(self) -> None:
+        """No config should use default values."""
+
+        class SimpleStep(BaseStep[None, str]):
+            async def execute(self, context: StepContext[None]) -> str:
+                assert context.config.timeout is None
+                assert context.config.retries == 0
+                assert context.config.cost_budget is None
+                return "done"
+
+        pipeline = Pipeline(
+            name="test",
+            steps={"simple": SimpleStep()},
+            # No config provided
+        )
+
+        result = await pipeline.execute({}, None)
+        assert result.output == "done"
+
+
+# ============================================================================
+# Coverage Gap Tests
+# ============================================================================
+
+
+class TestCoverageGaps:
+    """Tests to cover remaining edge cases for 100% coverage."""
+
+    def test_invalid_output_step_raises(self) -> None:
+        """Should raise PipelineValidationError for unknown output_step."""
+
+        class SimpleStep(BaseStep[None, str]):
+            async def execute(self, context: StepContext[None]) -> str:
+                return "done"
+
+        with pytest.raises(PipelineValidationError, match="output_step 'nonexistent' not in steps"):
+            Pipeline(
+                name="test",
+                steps={"a": SimpleStep()},
+                output_step="nonexistent",
+            )
+
+    async def test_step_execution_error_reraise(self) -> None:
+        """Should re-raise StepExecutionError directly when step raises it."""
+
+        class RaisingStep(BaseStep[None, str]):
+            async def execute(self, context: StepContext[None]) -> str:
+                # Step raises StepExecutionError directly (unusual but possible)
+                raise StepExecutionError("inner_step", RuntimeError("Inner error"))
+
+        pipeline = Pipeline(
+            name="test",
+            steps={"raising": RaisingStep()},
+        )
+
+        with pytest.raises(StepExecutionError) as exc_info:
+            await pipeline.execute({}, None)
+
+        # Should be the same error, not wrapped again
+        assert exc_info.value.step_id == "inner_step"
+
+    async def test_executor_without_tracer(self) -> None:
+        """Should execute step without tracer (line 207)."""
+
+        class SimpleStep(BaseStep[None, str]):
+            async def execute(self, context: StepContext[None]) -> str:
+                return "no_tracer"
+
+        pipeline = Pipeline(
+            name="test",
+            steps={"simple": SimpleStep()},
+        )
+
+        # Execute without tracer explicitly
+        result = await pipeline.execute({}, None, tracer=None)
+        assert result.output == "no_tracer"
+
+    async def test_usage_extraction_with_nonzero_usage(self) -> None:
+        """Should extract usage when cost or tokens are non-zero (lines 185, 216)."""
+        agent = FastroAgent(model="test", system_prompt="Test")
+
+        class UsageStep(BaseStep[None, str]):
+            async def execute(self, context: StepContext[None]) -> str:
+                await context.run(agent, "Hello")
+                return "done"
+
+        mock_response = ChatResponse(
+            output="Result",
+            content="Result",
+            model="test",
+            input_tokens=10,
+            output_tokens=5,
+            total_tokens=15,
+            cost_microcents=75,
+            processing_time_ms=100,
+        )
+
+        pipeline = Pipeline(
+            name="test",
+            steps={"usage": UsageStep()},
+        )
+
+        with patch.object(agent, "run", new_callable=AsyncMock) as mock_run:
+            mock_run.return_value = mock_response
+            result = await pipeline.execute({}, None)
+
+        assert result.output == "done"
+        assert result.usage is not None
+        assert result.usage.total_cost_microcents == 75
+
+    async def test_executor_without_tracer_directly(self) -> None:
+        """Test executor directly without tracer (covers line 207)."""
+        from fastroai.pipelines.executor import PipelineExecutor
+
+        class SimpleStep(BaseStep[None, str]):
+            async def execute(self, context: StepContext[None]) -> str:
+                return "executed"
+
+        executor = PipelineExecutor(
+            steps={"simple": SimpleStep()},
+            dependencies={},
+        )
+
+        # Call executor directly with tracer=None
+        result = await executor.execute({}, None, tracer=None)
+        assert result.outputs["simple"] == "executed"

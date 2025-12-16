@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [
-    { name = "FastroAI Team" }
+    { name = "Igor Benav" }
 ]
 keywords = ["ai", "pydantic", "pydantic-ai", "orchestration", "pipelines", "agents"]
 classifiers = [
@@ -47,21 +47,15 @@ warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
 module = "tests.*"
-# Disable strict mode entirely for tests
 strict = false
-# Allow missing type annotations
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 disallow_untyped_calls = false
 disallow_untyped_decorators = false
 disallow_subclassing_any = false
-# Allow Any returns
 warn_return_any = false
-# Allow missing generic params
 disallow_any_generics = false
-# Allow implicit Optional
 no_implicit_optional = false
-# Don't warn about unused ignores in tests
 warn_unused_ignores = false
 
 [tool.ruff]

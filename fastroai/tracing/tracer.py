@@ -80,7 +80,8 @@ class SimpleTracer:
     For production use, consider implementing a Tracer for your
     observability platform.
 
-    Example:
+    Examples:
+        ```python
         tracer = SimpleTracer()
 
         async with tracer.span("my_operation", user_id="123") as trace_id:
@@ -92,6 +93,7 @@ class SimpleTracer:
         # INFO [abc12345] Starting my_operation
         # INFO [abc12345] Metric result_size=42
         # INFO [abc12345] Completed my_operation in 0.123s
+        ```
     """
 
     def __init__(self, logger: logging.Logger | None = None) -> None:
@@ -174,12 +176,14 @@ class NoOpTracer:
     This tracer satisfies the Tracer protocol but performs no operations,
     making it suitable for testing or when tracing overhead is undesirable.
 
-    Example:
+    Examples:
+        ```python
         tracer = NoOpTracer()
 
         async with tracer.span("operation") as trace_id:
             # trace_id is still generated for compatibility
             result = await do_something()
+        ```
     """
 
     @asynccontextmanager

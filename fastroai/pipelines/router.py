@@ -26,7 +26,8 @@ class BasePipeline(ABC, Generic[DepsT, InputT, OutputT]):
     - A/B testing
     - Fallback pipelines
 
-    Example:
+    Examples:
+        ```python
         class InvestmentRouter(BasePipeline[MyDeps, dict, Plan]):
             def __init__(self):
                 super().__init__("investment_router")
@@ -40,6 +41,7 @@ class BasePipeline(ABC, Generic[DepsT, InputT, OutputT]):
 
         router = InvestmentRouter()
         result = await router.execute({"amount": 50000}, deps)
+        ```
     """
 
     def __init__(self, name: str) -> None:

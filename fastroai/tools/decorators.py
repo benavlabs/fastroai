@@ -47,7 +47,8 @@ def safe_tool(
     Returns:
         Decorated async function with safety features.
 
-    Example:
+    Examples:
+        ```python
         @safe_tool(timeout=10, max_retries=2)
         async def web_search(query: str) -> str:
             '''Search the web for information.'''
@@ -61,7 +62,7 @@ def safe_tool(
         # - Returns error message on final failure
         # - AI sees: "Tool timed out after 2 attempts"
 
-    Example with custom messages:
+        # With custom messages:
         @safe_tool(
             timeout=30,
             on_timeout="Search is taking too long. Try a simpler query.",
@@ -69,6 +70,7 @@ def safe_tool(
         )
         async def search(query: str) -> str:
             ...
+        ```
     """
 
     def decorator(func: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R | str]]:

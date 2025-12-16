@@ -72,7 +72,8 @@ class CostCalculator:
 
     1 microcent = 1/10,000 cent = 1/1,000,000 dollar
 
-    Example:
+    Examples:
+        ```python
         calc = CostCalculator()
 
         # Calculate cost for a request
@@ -91,6 +92,7 @@ class CostCalculator:
             "output_cost_per_1k_tokens": 1500,
         }
         calc = CostCalculator(pricing=my_pricing)
+        ```
     """
 
     def __init__(self, pricing: dict[str, dict[str, int]] | None = None) -> None:
@@ -121,9 +123,12 @@ class CostCalculator:
         Returns:
             Cost in microcents (integer). Returns 0 for unknown models.
 
-        Example:
-            >>> calc.calculate_cost("gpt-4o", 1000, 500)
-            750
+        Examples:
+            ```python
+            calc = CostCalculator()
+            cost = calc.calculate_cost("gpt-4o", 1000, 500)
+            print(cost)  # 750
+            ```
         """
         normalized = self._normalize_model_name(model)
         model_pricing = self.pricing.get(normalized)
@@ -152,9 +157,12 @@ class CostCalculator:
             Normalized model name.
 
         Examples:
-            "openai:gpt-4o" -> "gpt-4o"
-            "GPT-4o" -> "gpt-4o"
-            "anthropic:claude-3-opus" -> "claude-3-opus"
+            ```python
+            calc = CostCalculator()
+            calc._normalize_model_name("openai:gpt-4o")  # -> "gpt-4o"
+            calc._normalize_model_name("GPT-4o")  # -> "gpt-4o"
+            calc._normalize_model_name("anthropic:claude-3-opus")  # -> "claude-3-opus"
+            ```
         """
         if not model:
             return ""
@@ -175,6 +183,13 @@ class CostCalculator:
 
         Returns:
             Cost in dollars (float).
+
+        Examples:
+            ```python
+            calc = CostCalculator()
+            dollars = calc.microcents_to_dollars(1_500_000)
+            print(f"${dollars:.2f}")  # $1.50
+            ```
         """
         return microcents / 1_000_000
 
@@ -186,6 +201,15 @@ class CostCalculator:
 
         Returns:
             Cost in microcents (integer).
+
+        Examples:
+            ```python
+            calc = CostCalculator()
+
+            # Set a budget of $0.10
+            budget = calc.dollars_to_microcents(0.10)
+            print(budget)  # 100000
+            ```
         """
         return round(dollars * 1_000_000)
 
@@ -197,6 +221,19 @@ class CostCalculator:
 
         Returns:
             Dict with microcents, cents, and dollars representations.
+
+        Examples:
+            ```python
+            calc = CostCalculator()
+            formatted = calc.format_cost(1_500_000)
+
+            print(formatted)
+            # {
+            #     "microcents": 1500000,
+            #     "cents": 150,
+            #     "dollars": 1.5
+            # }
+            ```
         """
         return {
             "microcents": microcents,
@@ -212,6 +249,16 @@ class CostCalculator:
 
         Returns:
             Pricing dict or None if model not found.
+
+        Examples:
+            ```python
+            calc = CostCalculator()
+            pricing = calc.get_model_pricing("gpt-4o")
+
+            if pricing:
+                print(f"Input: {pricing['input_cost_per_1k_tokens']} microcents/1K")
+                print(f"Output: {pricing['output_cost_per_1k_tokens']} microcents/1K")
+            ```
         """
         normalized = self._normalize_model_name(model)
         return self.pricing.get(normalized)
@@ -228,6 +275,21 @@ class CostCalculator:
             model: Model identifier (will be normalized).
             input_cost_per_1k_tokens: Input cost in microcents per 1K tokens.
             output_cost_per_1k_tokens: Output cost in microcents per 1K tokens.
+
+        Examples:
+            ```python
+            calc = CostCalculator()
+
+            # Add pricing for a custom/local model
+            # $0.001 per 1K input, $0.002 per 1K output
+            calc.add_model_pricing(
+                model="my-local-llama",
+                input_cost_per_1k_tokens=100,  # $0.001 = 100 microcents
+                output_cost_per_1k_tokens=200,  # $0.002 = 200 microcents
+            )
+
+            cost = calc.calculate_cost("my-local-llama", 5000, 2000)
+            ```
         """
         normalized = self._normalize_model_name(model)
         self.pricing[normalized] = {

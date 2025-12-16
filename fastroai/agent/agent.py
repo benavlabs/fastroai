@@ -18,7 +18,6 @@ from pydantic_ai.settings import ModelSettings
 from pydantic_ai.toolsets import AbstractToolset
 
 from ..pipelines.base import BaseStep, StepContext
-from ..pipelines.schemas import StepUsage
 from ..tracing import NoOpTracer, Tracer
 from ..usage import CostCalculator
 from .schemas import AgentConfig, ChatResponse, StreamChunk
@@ -40,7 +39,8 @@ class FastroAgent(Generic[OutputT]):
     The agent is STATELESS regarding conversation history.
     Callers load history from their storage and pass it to run().
 
-    Example:
+    Examples:
+        ```python
         # Basic usage (returns string)
         agent = FastroAgent(
             model="openai:gpt-4o",
@@ -83,6 +83,7 @@ class FastroAgent(Generic[OutputT]):
                 print(f"\\nCost: ${chunk.usage_data.cost_dollars:.6f}")
             else:
                 print(chunk.content, end="", flush=True)
+        ```
     """
 
     def __init__(
@@ -106,7 +107,8 @@ class FastroAgent(Generic[OutputT]):
             **kwargs: Passed to AgentConfig if config is None.
                      Common: model, system_prompt, temperature, max_tokens.
 
-        Example:
+        Examples:
+            ```python
             # Using config object
             config = AgentConfig(model="gpt-4o", temperature=0.3)
             agent = FastroAgent(config=config)
@@ -125,6 +127,7 @@ class FastroAgent(Generic[OutputT]):
             from pydantic_ai import Agent
             pydantic_agent = Agent(model="gpt-4o", output_type=MyType)
             agent = FastroAgent(agent=pydantic_agent)
+            ```
         """
         self.config = config or AgentConfig(**kwargs)
         self.toolsets = toolsets or []
@@ -143,7 +146,11 @@ class FastroAgent(Generic[OutputT]):
 
     @property
     def agent(self) -> Agent[Any, OutputT]:
-        """Access the underlying PydanticAI agent."""
+        """Access the underlying PydanticAI agent.
+
+        Returns:
+            The wrapped PydanticAI Agent instance.
+        """
         return self._agent
 
     async def run(
@@ -168,11 +175,14 @@ class FastroAgent(Generic[OutputT]):
         Returns:
             ChatResponse with content, usage, cost, and trace_id.
 
-        Example:
-            # Simple
+        Examples:
+            ```python
+            # Simple usage
             response = await agent.run("Hello!")
+            print(response.content)
+            print(f"Cost: ${response.cost_dollars:.6f}")
 
-            # With history
+            # With conversation history
             history = await memory.load(user_id)
             response = await agent.run("Continue", message_history=history)
             await memory.save(user_id, "Continue", response.content)
@@ -180,6 +190,8 @@ class FastroAgent(Generic[OutputT]):
             # With tracing
             tracer = SimpleTracer()
             response = await agent.run("Hello", tracer=tracer)
+            print(f"Trace ID: {response.trace_id}")
+            ```
         """
         effective_tracer = tracer or NoOpTracer()
 
@@ -224,12 +236,14 @@ class FastroAgent(Generic[OutputT]):
         Yields:
             StreamChunk objects. Final chunk has usage_data.
 
-        Example:
+        Examples:
+            ```python
             async for chunk in agent.run_stream("Tell me a story"):
                 if chunk.is_final:
                     print(f"\\nCost: ${chunk.usage_data.cost_dollars:.6f}")
                 else:
                     print(chunk.content, end="", flush=True)
+            ```
         """
         effective_tracer = tracer or NoOpTracer()
 
@@ -392,7 +406,7 @@ class FastroAgent(Generic[OutputT]):
 
         tool_calls = self._extract_tool_calls_from_messages(stream.new_messages())
         raw_output = stream.get_output()
-        if inspect.isawaitable(raw_output):
+        if inspect.isawaitable(raw_output):  # pragma: no cover
             raw_output = await raw_output
         output: OutputT = raw_output
         content = output if isinstance(output, str) else str(output)
@@ -455,7 +469,8 @@ class FastroAgent(Generic[OutputT]):
         Returns:
             A BaseStep that can be used in a Pipeline.
 
-        Example:
+        Examples:
+            ```python
             # Static prompt
             agent = FastroAgent(model="gpt-4o", system_prompt="Summarize text.")
             step = agent.as_step("Summarize the document.")
@@ -474,6 +489,7 @@ class FastroAgent(Generic[OutputT]):
                 name="summarizer",
                 steps={"summarize": step},
             )
+            ```
         """
         return AgentStepWrapper(self, prompt)
 
@@ -483,10 +499,12 @@ class AgentStepWrapper(BaseStep[DepsT, OutputT]):
 
     Created via FastroAgent.as_step(). Wraps an agent as a pipeline step.
 
-    The wrapper:
-    - Forwards context.deps and context.tracer to the agent
-    - Tracks usage in last_usage property
-    - Returns the agent's typed output directly
+    The wrapper uses ctx.run() for automatic tracer/deps forwarding and usage
+    tracking, and returns the agent's typed output directly.
+
+    Note:
+        Use FastroAgent.as_step() to create instances rather than
+        instantiating directly.
     """
 
     def __init__(
@@ -494,30 +512,33 @@ class AgentStepWrapper(BaseStep[DepsT, OutputT]):
         agent: FastroAgent[OutputT],
         prompt: Callable[[StepContext[DepsT]], str] | str,
     ) -> None:
+        """Initialize the step wrapper.
+
+        Args:
+            agent: The FastroAgent to wrap.
+            prompt: Static string or function that builds the prompt from context.
+        """
         self._agent = agent
         self._prompt = prompt
-        self._last_usage: StepUsage | None = None
 
     @property
     def agent(self) -> FastroAgent[OutputT]:
-        """Access the underlying FastroAgent."""
+        """Access the underlying FastroAgent.
+
+        Returns:
+            The wrapped FastroAgent instance.
+        """
         return self._agent
 
-    @property
-    def last_usage(self) -> StepUsage | None:
-        """Usage from the most recent execute() call."""
-        return self._last_usage
-
     async def execute(self, context: StepContext[DepsT]) -> OutputT:
-        """Execute the agent with the configured prompt."""
+        """Execute the agent with the configured prompt.
+
+        Args:
+            context: Step execution context with inputs, deps, and config.
+
+        Returns:
+            The agent's typed output.
+        """
         message = self._prompt if isinstance(self._prompt, str) else self._prompt(context)
-
-        response = await self._agent.run(
-            message=message,
-            deps=context.deps,
-            tracer=context.tracer,
-        )
-
-        self._last_usage = StepUsage.from_chat_response(response)
-
+        response = await context.run(self._agent, message)
         return response.output

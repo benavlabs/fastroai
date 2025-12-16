@@ -26,7 +26,10 @@ Example:
     print(result.output)  # "POSITIVE"
 """
 
+from ..errors import CostBudgetExceededError, FastroAIError, PipelineValidationError
 from .base import BaseStep, ConversationState, ConversationStatus, StepContext
+from .config import PipelineConfig, StepConfig
+from .decorators import step
 from .executor import StepExecutionError
 from .pipeline import Pipeline, PipelineResult
 from .router import BasePipeline
@@ -38,10 +41,19 @@ __all__ = [
     "StepContext",
     "ConversationStatus",
     "ConversationState",
+    # Config
+    "StepConfig",
+    "PipelineConfig",
+    # Decorators
+    "step",
+    # Errors
+    "FastroAIError",
+    "PipelineValidationError",
+    "StepExecutionError",
+    "CostBudgetExceededError",
     # Pipeline
     "Pipeline",
     "PipelineResult",
-    "StepExecutionError",
     # Router
     "BasePipeline",
     # Schemas
