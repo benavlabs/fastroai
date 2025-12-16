@@ -257,8 +257,8 @@ class TestFastroAgentInit:
 
     def test_init_with_custom_calculator(self) -> None:
         """Should use provided cost calculator."""
-        custom_pricing = {"test-model": {"input_cost_per_1k_tokens": 100, "output_cost_per_1k_tokens": 200}}
-        calc = CostCalculator(pricing=custom_pricing)
+        custom_pricing = {"test-model": {"input_per_mtok": 1.00, "output_per_mtok": 2.00}}
+        calc = CostCalculator(pricing_overrides=custom_pricing)
         agent = FastroAgent(model="test", cost_calculator=calc)
         assert agent.cost_calculator is calc
 
@@ -308,11 +308,11 @@ class TestFastroAgentRun:
             mock_run.return_value = mock_result
             response = await agent.run("Hello")
 
-        # gpt-4o: 250 microcents/1K input, 1000 microcents/1K output
-        # 100 * 250 / 1000 = 25
-        # 50 * 1000 / 1000 = 50
-        # Total: 75
-        assert response.cost_microcents == 75
+        # gpt-4o: $2.50/1M input, $10/1M output (from genai-prices)
+        # 100 / 1M * $2.50 = $0.00025 = 250 microcents
+        # 50 / 1M * $10 = $0.0005 = 500 microcents
+        # Total: 750 microcents
+        assert response.cost_microcents == 750
 
     async def test_run_includes_trace_id(self, mock_result: MagicMock) -> None:
         """Should include trace ID in response."""

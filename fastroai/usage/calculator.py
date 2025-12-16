@@ -3,6 +3,9 @@
 This module provides precise cost calculation using integer microcents
 to avoid floating-point precision errors that can accumulate in billing.
 
+Uses genai-prices package for up-to-date model pricing data, with support
+for custom pricing overrides (e.g., volume discounts).
+
 Why microcents?
     Floating-point math has precision errors:
     >>> 0.1 + 0.2
@@ -13,62 +16,24 @@ Why microcents?
     300
 
     For billing systems, this matters.
-
-Pricing format:
-    Costs are stored in microcents per 1000 tokens.
-
-    1 microcent = 1/10,000 cent = 1/1,000,000 dollar
-
-    To convert from provider pricing ($/1M tokens) to microcents per 1K::
-
-        microcents_per_1K = price_per_1M_dollars * 100
-
-    Example: $2.50/1M tokens = 250 microcents per 1K tokens
 """
 
 from __future__ import annotations
 
 import logging
+from decimal import Decimal
 from typing import Any
 
-logger = logging.getLogger("fastroai.usage")
+from genai_prices import Usage, calc_price
 
-DEFAULT_PRICING: dict[str, dict[str, int]] = {
-    # OpenAI
-    "gpt-4o": {"input_cost_per_1k_tokens": 250, "output_cost_per_1k_tokens": 1000},
-    "gpt-4o-mini": {"input_cost_per_1k_tokens": 15, "output_cost_per_1k_tokens": 60},
-    "gpt-4-turbo": {"input_cost_per_1k_tokens": 1000, "output_cost_per_1k_tokens": 3000},
-    "gpt-4": {"input_cost_per_1k_tokens": 3000, "output_cost_per_1k_tokens": 6000},
-    "gpt-3.5-turbo": {"input_cost_per_1k_tokens": 50, "output_cost_per_1k_tokens": 150},
-    "o1": {"input_cost_per_1k_tokens": 1500, "output_cost_per_1k_tokens": 6000},
-    "o1-mini": {"input_cost_per_1k_tokens": 300, "output_cost_per_1k_tokens": 1200},
-    "o1-preview": {"input_cost_per_1k_tokens": 1500, "output_cost_per_1k_tokens": 6000},
-    # Anthropic
-    "claude-sonnet-4-20250514": {"input_cost_per_1k_tokens": 300, "output_cost_per_1k_tokens": 1500},
-    "claude-3-5-sonnet": {"input_cost_per_1k_tokens": 300, "output_cost_per_1k_tokens": 1500},
-    "claude-3-5-sonnet-20241022": {"input_cost_per_1k_tokens": 300, "output_cost_per_1k_tokens": 1500},
-    "claude-3-5-sonnet-latest": {"input_cost_per_1k_tokens": 300, "output_cost_per_1k_tokens": 1500},
-    "claude-3-opus": {"input_cost_per_1k_tokens": 1500, "output_cost_per_1k_tokens": 7500},
-    "claude-3-opus-20240229": {"input_cost_per_1k_tokens": 1500, "output_cost_per_1k_tokens": 7500},
-    "claude-3-haiku": {"input_cost_per_1k_tokens": 25, "output_cost_per_1k_tokens": 125},
-    "claude-3-haiku-20240307": {"input_cost_per_1k_tokens": 25, "output_cost_per_1k_tokens": 125},
-    # Google
-    "gemini-1.5-pro": {"input_cost_per_1k_tokens": 125, "output_cost_per_1k_tokens": 500},
-    "gemini-1.5-flash": {"input_cost_per_1k_tokens": 7, "output_cost_per_1k_tokens": 30},
-    "gemini-2.0-flash": {"input_cost_per_1k_tokens": 10, "output_cost_per_1k_tokens": 40},
-    "gemini-2.0-flash-exp": {"input_cost_per_1k_tokens": 0, "output_cost_per_1k_tokens": 0},
-    # Groq
-    "llama-3.3-70b-versatile": {"input_cost_per_1k_tokens": 59, "output_cost_per_1k_tokens": 79},
-    "llama-3.1-8b-instant": {"input_cost_per_1k_tokens": 5, "output_cost_per_1k_tokens": 8},
-    "mixtral-8x7b-32768": {"input_cost_per_1k_tokens": 24, "output_cost_per_1k_tokens": 24},
-}
+logger = logging.getLogger("fastroai.usage")
 
 
 class CostCalculator:
     """Token cost calculator with microcents precision.
 
-    Uses integer arithmetic to avoid floating-point precision errors
-    that can compound in billing systems.
+    Uses genai-prices for model pricing data, with support for custom
+    pricing overrides. All costs are returned as integer microcents.
 
     1 microcent = 1/10,000 cent = 1/1,000,000 dollar
 
@@ -78,31 +43,28 @@ class CostCalculator:
 
         # Calculate cost for a request
         cost = calc.calculate_cost("gpt-4o", input_tokens=1000, output_tokens=500)
-        # Input:  1000 * 250 / 1000 = 250 microcents
-        # Output: 500 * 1000 / 1000 = 500 microcents
-        # Total: 750 microcents = $0.00075
-
         print(f"Cost: {cost} microcents")
         print(f"Cost: ${calc.microcents_to_dollars(cost):.6f}")
 
-        # Custom pricing
-        my_pricing = DEFAULT_PRICING.copy()
-        my_pricing["my-model"] = {
-            "input_cost_per_1k_tokens": 500,
-            "output_cost_per_1k_tokens": 1500,
-        }
-        calc = CostCalculator(pricing=my_pricing)
+        # With custom pricing override (e.g., volume discount)
+        calc = CostCalculator(pricing_overrides={
+            "gpt-4o": {"input_per_mtok": 2.00, "output_per_mtok": 8.00},
+        })
         ```
     """
 
-    def __init__(self, pricing: dict[str, dict[str, int]] | None = None) -> None:
-        """Initialize calculator with pricing data.
+    def __init__(
+        self,
+        pricing_overrides: dict[str, dict[str, float]] | None = None,
+    ) -> None:
+        """Initialize calculator.
 
         Args:
-            pricing: Custom pricing dict mapping model names to costs.
-                    Defaults to DEFAULT_PRICING if not provided.
+            pricing_overrides: Custom pricing for specific models. Keys are model
+                names, values are dicts with 'input_per_mtok' and 'output_per_mtok'
+                (dollars per million tokens). Use for volume discounts or custom models.
         """
-        self.pricing = pricing if pricing is not None else DEFAULT_PRICING.copy()
+        self._overrides = pricing_overrides or {}
 
     def calculate_cost(
         self,
@@ -111,9 +73,6 @@ class CostCalculator:
         output_tokens: int,
     ) -> int:
         """Calculate cost in microcents.
-
-        Uses integer arithmetic with ceiling division to ensure precision
-        and avoid small token counts rounding to zero.
 
         Args:
             model: Model identifier (e.g., "gpt-4o" or "openai:gpt-4o").
@@ -127,28 +86,44 @@ class CostCalculator:
             ```python
             calc = CostCalculator()
             cost = calc.calculate_cost("gpt-4o", 1000, 500)
-            print(cost)  # 750
+            print(f"${calc.microcents_to_dollars(cost):.6f}")
             ```
         """
         normalized = self._normalize_model_name(model)
-        model_pricing = self.pricing.get(normalized)
 
-        if not model_pricing:
-            logger.debug(f"No pricing for model '{model}' (normalized: '{normalized}')")
+        if normalized in self._overrides:
+            return self._calc_from_override(normalized, input_tokens, output_tokens)
+
+        try:
+            price = calc_price(
+                Usage(input_tokens=input_tokens, output_tokens=output_tokens),
+                model_ref=normalized,
+            )
+            return self._dollars_to_microcents(price.total_price)
+        except LookupError:
+            logger.debug(f"No pricing found for model '{model}' (normalized: '{normalized}')")
             return 0
 
-        input_cost_per_1k = model_pricing.get("input_cost_per_1k_tokens", 0)
-        output_cost_per_1k = model_pricing.get("output_cost_per_1k_tokens", 0)
+    def _calc_from_override(self, model: str, input_tokens: int, output_tokens: int) -> int:
+        """Calculate cost using override pricing."""
+        override = self._overrides[model]
+        input_per_mtok = Decimal(str(override.get("input_per_mtok", 0)))
+        output_per_mtok = Decimal(str(override.get("output_per_mtok", 0)))
 
-        total_cost_unscaled = input_tokens * input_cost_per_1k + output_tokens * output_cost_per_1k
-        if total_cost_unscaled == 0:
-            return 0
-        return (total_cost_unscaled + 999) // 1000
+        input_cost = Decimal(input_tokens) / Decimal(1_000_000) * input_per_mtok
+        output_cost = Decimal(output_tokens) / Decimal(1_000_000) * output_per_mtok
+        total_dollars = input_cost + output_cost
+
+        return self._dollars_to_microcents(total_dollars)
+
+    def _dollars_to_microcents(self, dollars: Decimal) -> int:
+        """Convert Decimal dollars to int microcents."""
+        return int(dollars * 1_000_000)
 
     def _normalize_model_name(self, model: str) -> str:
         """Normalize model name for pricing lookup.
 
-        Handles provider prefixes and case normalization.
+        Handles provider prefixes (e.g., "openai:gpt-4o" -> "gpt-4o").
 
         Args:
             model: Raw model identifier.
@@ -160,7 +135,6 @@ class CostCalculator:
             ```python
             calc = CostCalculator()
             calc._normalize_model_name("openai:gpt-4o")  # -> "gpt-4o"
-            calc._normalize_model_name("GPT-4o")  # -> "gpt-4o"
             calc._normalize_model_name("anthropic:claude-3-opus")  # -> "claude-3-opus"
             ```
         """
@@ -170,7 +144,7 @@ class CostCalculator:
         if ":" in model:
             model = model.split(":", 1)[1]
 
-        return model.lower()
+        return model
 
     def microcents_to_dollars(self, microcents: int) -> float:
         """Convert microcents to dollars for display.
@@ -241,58 +215,42 @@ class CostCalculator:
             "dollars": self.microcents_to_dollars(microcents),
         }
 
-    def get_model_pricing(self, model: str) -> dict[str, int] | None:
-        """Get pricing for a specific model.
-
-        Args:
-            model: Model identifier.
-
-        Returns:
-            Pricing dict or None if model not found.
-
-        Examples:
-            ```python
-            calc = CostCalculator()
-            pricing = calc.get_model_pricing("gpt-4o")
-
-            if pricing:
-                print(f"Input: {pricing['input_cost_per_1k_tokens']} microcents/1K")
-                print(f"Output: {pricing['output_cost_per_1k_tokens']} microcents/1K")
-            ```
-        """
-        normalized = self._normalize_model_name(model)
-        return self.pricing.get(normalized)
-
-    def add_model_pricing(
+    def add_pricing_override(
         self,
         model: str,
-        input_cost_per_1k_tokens: int,
-        output_cost_per_1k_tokens: int,
+        input_per_mtok: float,
+        output_per_mtok: float,
     ) -> None:
-        """Add or update pricing for a model.
+        """Add or update pricing override for a model.
+
+        Use this for custom pricing (volume discounts) or models not in genai-prices.
 
         Args:
             model: Model identifier (will be normalized).
-            input_cost_per_1k_tokens: Input cost in microcents per 1K tokens.
-            output_cost_per_1k_tokens: Output cost in microcents per 1K tokens.
+            input_per_mtok: Input cost in dollars per million tokens.
+            output_per_mtok: Output cost in dollars per million tokens.
 
         Examples:
             ```python
             calc = CostCalculator()
 
-            # Add pricing for a custom/local model
-            # $0.001 per 1K input, $0.002 per 1K output
-            calc.add_model_pricing(
-                model="my-local-llama",
-                input_cost_per_1k_tokens=100,  # $0.001 = 100 microcents
-                output_cost_per_1k_tokens=200,  # $0.002 = 200 microcents
+            # Add volume discount pricing (20% off standard)
+            calc.add_pricing_override(
+                model="gpt-4o",
+                input_per_mtok=2.00,   # Standard is $2.50
+                output_per_mtok=8.00,  # Standard is $10.00
             )
 
-            cost = calc.calculate_cost("my-local-llama", 5000, 2000)
+            # Add custom/local model
+            calc.add_pricing_override(
+                model="my-local-llama",
+                input_per_mtok=0.10,
+                output_per_mtok=0.20,
+            )
             ```
         """
         normalized = self._normalize_model_name(model)
-        self.pricing[normalized] = {
-            "input_cost_per_1k_tokens": input_cost_per_1k_tokens,
-            "output_cost_per_1k_tokens": output_cost_per_1k_tokens,
+        self._overrides[normalized] = {
+            "input_per_mtok": input_per_mtok,
+            "output_per_mtok": output_per_mtok,
         }

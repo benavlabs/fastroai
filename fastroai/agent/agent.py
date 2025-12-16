@@ -119,8 +119,10 @@ class FastroAgent(Generic[OutputT]):
             # With structured output
             agent = FastroAgent(model="gpt-4o", output_type=MyResponseModel)
 
-            # Custom pricing
-            calc = CostCalculator(pricing=my_pricing)
+            # Custom pricing override (e.g., volume discount)
+            calc = CostCalculator(pricing_overrides={
+                "gpt-4o": {"input_per_mtok": 2.00, "output_per_mtok": 8.00}
+            })
             agent = FastroAgent(cost_calculator=calc)
 
             # Escape hatch: your own PydanticAI agent

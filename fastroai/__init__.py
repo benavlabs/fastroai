@@ -55,7 +55,7 @@ from .pipelines import (
 )
 from .tools import FunctionToolsetBase, SafeToolset, safe_tool
 from .tracing import NoOpTracer, SimpleTracer, Tracer
-from .usage import DEFAULT_PRICING, CostCalculator
+from .usage import CostCalculator
 
 __all__ = [
     "__version__",
@@ -93,5 +93,4 @@ __all__ = [
     "NoOpTracer",
     # Usage
     "CostCalculator",
-    "DEFAULT_PRICING",
 ]

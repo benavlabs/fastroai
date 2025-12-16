@@ -79,16 +79,16 @@ print(f"Output tokens: {response.output_tokens}")
 print(f"Cost: ${response.cost_dollars:.6f}")
 ```
 
-Pricing is included for OpenAI, Anthropic, Google, and Groq models. For other providers, add your own:
+Pricing is powered by [genai-prices](https://github.com/pydantic/genai-prices) and includes OpenAI, Anthropic, Google, Groq, and many more. For custom models or volume discounts, add your own pricing:
 
 ```python
 from fastroai import CostCalculator
 
 calc = CostCalculator()
-calc.add_model_pricing(
-    "my-custom-model",
-    input_cost_per_1k_tokens=100,
-    output_cost_per_1k_tokens=200,
+calc.add_pricing_override(
+    model="my-custom-model",
+    input_per_mtok=1.00,   # $1.00 per million input tokens
+    output_per_mtok=2.00,  # $2.00 per million output tokens
 )
 agent = FastroAgent(model="my-custom-model", cost_calculator=calc)
 ```

@@ -776,6 +776,7 @@ name = "fastroai"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "genai-prices" },
     { name = "pydantic" },
     { name = "pydantic-ai" },
 ]
@@ -791,6 +792,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "genai-prices", specifier = ">=0.0.47" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-ai", specifier = ">=1.26.0" },
 ]

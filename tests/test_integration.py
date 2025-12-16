@@ -899,14 +899,14 @@ class TestCostCalculatorFeatures:
     """Integration tests for CostCalculator functionality."""
 
     def test_custom_pricing(self) -> None:
-        """Test adding custom model pricing."""
+        """Test adding custom model pricing override."""
         calc = CostCalculator()
 
-        # Add custom model
-        calc.add_model_pricing(
+        # Add custom model with override
+        calc.add_pricing_override(
             model="my-custom-model",
-            input_cost_per_1k_tokens=500,
-            output_cost_per_1k_tokens=1000,
+            input_per_mtok=5.00,  # $5/1M tokens
+            output_per_mtok=10.00,  # $10/1M tokens
         )
 
         cost = calc.calculate_cost(
@@ -915,10 +915,10 @@ class TestCostCalculatorFeatures:
             output_tokens=1000,
         )
 
-        # Input: 2000 * 500 / 1000 = 1000
-        # Output: 1000 * 1000 / 1000 = 1000
-        # Total: 2000 (with ceiling)
-        assert cost == 2000
+        # Input: 2000 / 1M * $5 = $0.01 = 10000 microcents
+        # Output: 1000 / 1M * $10 = $0.01 = 10000 microcents
+        # Total: 20000 microcents
+        assert cost == 20000
 
     def test_format_cost(self) -> None:
         """Test cost formatting utilities."""
@@ -946,10 +946,8 @@ class TestCostCalculatorFeatures:
         cost1 = calc.calculate_cost("openai:gpt-4o", 1000, 500)
         # Without prefix
         cost2 = calc.calculate_cost("gpt-4o", 1000, 500)
-        # Case insensitive
-        cost3 = calc.calculate_cost("GPT-4o", 1000, 500)
 
-        assert cost1 == cost2 == cost3
+        assert cost1 == cost2
 
     def test_unknown_model_returns_zero(self) -> None:
         """Test unknown models return zero cost."""
@@ -963,17 +961,21 @@ class TestCostCalculatorFeatures:
 
         assert cost == 0
 
-    def test_get_model_pricing(self) -> None:
-        """Test retrieving model pricing."""
+    def test_pricing_override_takes_precedence(self) -> None:
+        """Test that pricing overrides take precedence over genai-prices."""
         calc = CostCalculator()
 
-        pricing = calc.get_model_pricing("gpt-4o")
-        assert pricing is not None
-        assert "input_cost_per_1k_tokens" in pricing
-        assert "output_cost_per_1k_tokens" in pricing
+        # Get standard cost from genai-prices
+        standard_cost = calc.calculate_cost("gpt-4o", 1000, 0)
+        assert standard_cost > 0
 
-        # Unknown model
-        assert calc.get_model_pricing("unknown") is None
+        # Add discounted pricing
+        calc.add_pricing_override("gpt-4o", input_per_mtok=1.00, output_per_mtok=1.00)
+
+        # Override should be used
+        override_cost = calc.calculate_cost("gpt-4o", 1000, 0)
+        assert override_cost == 1000  # $1/1M * 1000 = 1000 microcents
+        assert override_cost != standard_cost
 
 
 # ============================================================================

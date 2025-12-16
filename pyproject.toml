@@ -21,6 +21,7 @@ classifiers = [
 ]
 
 dependencies = [
+    "genai-prices>=0.0.47",
     "pydantic>=2.12.5",
     "pydantic-ai>=1.26.0",
 ]
