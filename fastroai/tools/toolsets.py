@@ -18,7 +18,8 @@ class FunctionToolsetBase(FunctionToolset):
     Extends PydanticAI's FunctionToolset with a name for identification
     and organization purposes.
 
-    Example:
+    Examples:
+        ```python
         from fastroai.tools import safe_tool, FunctionToolsetBase
 
         @safe_tool(timeout=30)
@@ -40,6 +41,7 @@ class FunctionToolsetBase(FunctionToolset):
 
         # Use with FastroAgent
         agent = FastroAgent(toolsets=[WebToolset()])
+        ```
     """
 
     def __init__(
@@ -68,7 +70,8 @@ class SafeToolset(FunctionToolsetBase):
 
     Use this as a base class to mark toolsets as production-safe.
 
-    Example:
+    Examples:
+        ```python
         @safe_tool(timeout=5)
         async def calculator(expression: str) -> str:
             '''Evaluate a math expression.'''
@@ -91,6 +94,7 @@ class SafeToolset(FunctionToolsetBase):
                     tools=[calculator, get_time],
                     name="utilities",
                 )
+        ```
     """
 
     pass

@@ -529,3 +529,30 @@ class TestFastroAgentStreaming:
         assert final.usage_data is not None
         assert final.usage_data.input_tokens == 50
         assert final.usage_data.output_tokens == 25
+
+
+class TestToolCallExtraction:
+    """Tests for tool call extraction edge cases."""
+
+    def test_extract_tool_calls_handles_exception(self) -> None:
+        """_extract_tool_calls should return empty list on exception."""
+        agent = FastroAgent(model="test", system_prompt="Test")
+
+        # Create a mock result that raises on new_messages()
+        mock_result = MagicMock()
+        mock_result.new_messages.side_effect = RuntimeError("Failed to get messages")
+
+        tool_calls = agent._extract_tool_calls(mock_result)
+        assert tool_calls == []
+
+    def test_extract_tool_calls_from_messages_handles_exception(self) -> None:
+        """_extract_tool_calls_from_messages should return empty list on exception."""
+        agent = FastroAgent(model="test", system_prompt="Test")
+
+        # Create messages that cause iteration to fail
+        class BadMessages:
+            def __iter__(self):
+                raise RuntimeError("Iteration failed")
+
+        tool_calls = agent._extract_tool_calls_from_messages(BadMessages())
+        assert tool_calls == []

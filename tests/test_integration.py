@@ -561,3 +561,658 @@ class TestEndToEndWorkflow:
         assert result.usage is not None
         assert result.usage.total_cost_microcents > 0
         assert not result.stopped_early
+
+
+# ============================================================================
+# @step Decorator Integration Tests
+# ============================================================================
+
+
+class TestStepDecoratorIntegration:
+    """Integration tests for the @step decorator in realistic scenarios."""
+
+    async def test_step_decorator_basic(self) -> None:
+        """Test @step decorator creates functional pipeline step."""
+        from fastroai import step
+
+        @step
+        async def transform_step(ctx: StepContext[None]) -> str:
+            value = ctx.get_input("text")
+            return value.upper()
+
+        pipeline = Pipeline(
+            name="transform",
+            steps={"transform": transform_step},
+        )
+
+        result = await pipeline.execute({"text": "hello world"}, None)
+        assert result.output == "HELLO WORLD"
+
+    async def test_step_decorator_with_config(self) -> None:
+        """Test @step decorator with timeout and retry configuration."""
+        from fastroai import step
+
+        @step(timeout=5.0, retries=2, retry_delay=0.5, cost_budget=100_000)
+        async def configured_step(ctx: StepContext[None]) -> str:
+            # Access the config from context
+            return f"timeout={ctx.config.timeout},retries={ctx.config.retries}"
+
+        pipeline = Pipeline(
+            name="configured",
+            steps={"configured": configured_step},
+        )
+
+        result = await pipeline.execute({}, None)
+        assert result.output == "timeout=5.0,retries=2"
+
+        # Also verify the step itself has the config
+        assert configured_step.config.retries == 2
+        assert configured_step.config.timeout == 5.0
+        assert configured_step.config.retry_delay == 0.5
+        assert configured_step.config.cost_budget == 100_000
+
+    async def test_step_decorator_chain(self) -> None:
+        """Test multiple @step decorated functions in a pipeline."""
+        from fastroai import step
+
+        @step
+        async def step_one(ctx: StepContext[None]) -> int:
+            return ctx.get_input("value") * 2
+
+        @step
+        async def step_two(ctx: StepContext[None]) -> int:
+            prev = ctx.get_dependency("one")
+            return prev + 10
+
+        @step
+        async def step_three(ctx: StepContext[None]) -> str:
+            prev = ctx.get_dependency("two")
+            return f"Result: {prev}"
+
+        pipeline = Pipeline(
+            name="chain",
+            steps={"one": step_one, "two": step_two, "three": step_three},
+            dependencies={"two": ["one"], "three": ["two"]},
+        )
+
+        result = await pipeline.execute({"value": 5}, None)
+        assert result.output == "Result: 20"  # (5*2) + 10 = 20
+
+    async def test_step_decorator_with_deps(self) -> None:
+        """Test @step decorator accessing application dependencies."""
+        from dataclasses import dataclass
+
+        from fastroai import step
+
+        @dataclass
+        class AppDeps:
+            multiplier: int
+            prefix: str
+
+        @step
+        async def multiply_step(ctx: StepContext[AppDeps]) -> int:
+            value = ctx.get_input("value")
+            return value * ctx.deps.multiplier
+
+        @step
+        async def format_step(ctx: StepContext[AppDeps]) -> str:
+            prev = ctx.get_dependency("multiply")
+            return f"{ctx.deps.prefix}: {prev}"
+
+        pipeline: Pipeline[AppDeps, dict[str, int], str] = Pipeline(
+            name="with_deps",
+            steps={"multiply": multiply_step, "format": format_step},
+            dependencies={"format": ["multiply"]},
+        )
+
+        deps = AppDeps(multiplier=3, prefix="Answer")
+        result = await pipeline.execute({"value": 7}, deps)
+        assert result.output == "Answer: 21"
+
+
+# ============================================================================
+# Config Inheritance Integration Tests
+# ============================================================================
+
+
+class TestConfigInheritanceIntegration:
+    """Integration tests for config inheritance in pipelines."""
+
+    async def test_pipeline_config_applies_to_all_steps(self) -> None:
+        """Pipeline config should apply to all steps by default."""
+        from fastroai import PipelineConfig, step
+
+        configs_seen: dict[str, float | None] = {}
+
+        @step
+        async def step_a(ctx: StepContext[None]) -> str:
+            configs_seen["a"] = ctx.config.timeout
+            return "a"
+
+        @step
+        async def step_b(ctx: StepContext[None]) -> str:
+            configs_seen["b"] = ctx.config.timeout
+            return "b"
+
+        pipeline = Pipeline(
+            name="config_test",
+            steps={"a": step_a, "b": step_b},
+            dependencies={"b": ["a"]},
+            config=PipelineConfig(timeout=30.0),
+        )
+
+        await pipeline.execute({}, None)
+        assert configs_seen["a"] == 30.0
+        assert configs_seen["b"] == 30.0
+
+    async def test_step_config_overrides_pipeline(self) -> None:
+        """step_configs should override pipeline defaults."""
+        from fastroai import PipelineConfig, StepConfig, step
+
+        configs_seen: dict[str, tuple[float | None, int]] = {}
+
+        @step
+        async def step_a(ctx: StepContext[None]) -> str:
+            configs_seen["a"] = (ctx.config.timeout, ctx.config.retries)
+            return "a"
+
+        @step
+        async def step_b(ctx: StepContext[None]) -> str:
+            configs_seen["b"] = (ctx.config.timeout, ctx.config.retries)
+            return "b"
+
+        pipeline = Pipeline(
+            name="override_test",
+            steps={"a": step_a, "b": step_b},
+            dependencies={"b": ["a"]},
+            config=PipelineConfig(timeout=10.0, retries=1),
+            step_configs={"b": StepConfig(timeout=60.0, retries=5)},
+        )
+
+        await pipeline.execute({}, None)
+        assert configs_seen["a"] == (10.0, 1)  # Pipeline defaults
+        assert configs_seen["b"] == (60.0, 5)  # Override
+
+    async def test_decorator_config_inheritance(self) -> None:
+        """@step decorator config should be middle priority."""
+        from fastroai import PipelineConfig, StepConfig, step
+
+        # Step class has its own config
+        @step(timeout=20.0, retries=2)
+        async def configured_step(ctx: StepContext[None]) -> str:
+            return f"timeout={ctx.config.timeout}"
+
+        # Test 1: No pipeline config - use decorator config
+        pipeline1 = Pipeline(
+            name="test1",
+            steps={"step": configured_step},
+        )
+        result1 = await pipeline1.execute({}, None)
+        assert result1.output == "timeout=20.0"
+
+        # Test 2: Pipeline config exists - step class wins over pipeline
+        pipeline2 = Pipeline(
+            name="test2",
+            steps={"step": configured_step},
+            config=PipelineConfig(timeout=10.0),  # Lower priority
+        )
+        result2 = await pipeline2.execute({}, None)
+        assert result2.output == "timeout=20.0"  # Decorator wins
+
+        # Test 3: step_configs wins over all
+        pipeline3 = Pipeline(
+            name="test3",
+            steps={"step": configured_step},
+            config=PipelineConfig(timeout=10.0),
+            step_configs={"step": StepConfig(timeout=99.0)},  # Highest priority
+        )
+        result3 = await pipeline3.execute({}, None)
+        assert result3.output == "timeout=99.0"
+
+    async def test_cost_budget_inheritance(self) -> None:
+        """Cost budget should be inherited and enforced."""
+        from unittest.mock import AsyncMock, patch
+
+        from fastroai import CostBudgetExceededError, PipelineConfig, StepExecutionError
+
+        agent = FastroAgent(model="test", system_prompt="Test")
+
+        class ExpensiveStep(BaseStep[None, str]):
+            async def execute(self, context: StepContext[None]) -> str:
+                # Each call costs 100 microcents
+                await context.run(agent, "First")
+                await context.run(agent, "Second")
+                await context.run(agent, "Third")  # Should exceed budget
+                return "done"
+
+        from fastroai.agent import ChatResponse
+
+        mock_response = ChatResponse(
+            output="Result",
+            content="Result",
+            model="test",
+            input_tokens=10,
+            output_tokens=5,
+            total_tokens=15,
+            cost_microcents=100,
+            processing_time_ms=50,
+        )
+
+        pipeline = Pipeline(
+            name="budget_test",
+            steps={"expensive": ExpensiveStep()},
+            config=PipelineConfig(cost_budget=150),
+        )
+
+        with patch.object(agent, "run", new_callable=AsyncMock) as mock_run:
+            mock_run.return_value = mock_response
+
+            with pytest.raises(StepExecutionError) as exc_info:
+                await pipeline.execute({}, None)
+
+            assert isinstance(exc_info.value.original_error, CostBudgetExceededError)
+
+
+# ============================================================================
+# Error Handling Integration Tests
+# ============================================================================
+
+
+class TestErrorHandlingIntegration:
+    """Integration tests for error hierarchy and handling."""
+
+    async def test_step_execution_error_wraps_exceptions(self) -> None:
+        """StepExecutionError should wrap step exceptions."""
+        from fastroai import StepExecutionError
+
+        class FailingStep(BaseStep[None, str]):
+            async def execute(self, context: StepContext[None]) -> str:
+                raise ValueError("Something went wrong")
+
+        pipeline = Pipeline(
+            name="failing",
+            steps={"fail": FailingStep()},
+        )
+
+        with pytest.raises(StepExecutionError) as exc_info:
+            await pipeline.execute({}, None)
+
+        assert exc_info.value.step_id == "fail"
+        assert isinstance(exc_info.value.original_error, ValueError)
+        assert "Something went wrong" in str(exc_info.value.original_error)
+
+    async def test_pipeline_validation_errors(self) -> None:
+        """PipelineValidationError for invalid configurations."""
+        from fastroai import PipelineValidationError
+
+        class SimpleStep(BaseStep[None, str]):
+            async def execute(self, context: StepContext[None]) -> str:
+                return "done"
+
+        # Unknown dependency
+        with pytest.raises(PipelineValidationError, match="depends on unknown"):
+            Pipeline(
+                name="invalid",
+                steps={"a": SimpleStep()},
+                dependencies={"a": ["nonexistent"]},
+            )
+
+        # Cycle detection
+        with pytest.raises(PipelineValidationError, match="cycle"):
+            Pipeline(
+                name="cyclic",
+                steps={"a": SimpleStep(), "b": SimpleStep()},
+                dependencies={"a": ["b"], "b": ["a"]},
+            )
+
+        # Multiple terminals without output_step
+        with pytest.raises(PipelineValidationError, match="Multiple terminal"):
+            Pipeline(
+                name="multi_terminal",
+                steps={"a": SimpleStep(), "b": SimpleStep()},
+            )
+
+    async def test_catch_all_fastroai_errors(self) -> None:
+        """FastroAIError base class catches all library errors."""
+        from fastroai import FastroAIError
+
+        class FailingStep(BaseStep[None, str]):
+            async def execute(self, context: StepContext[None]) -> str:
+                raise RuntimeError("Step failed")
+
+        pipeline = Pipeline(
+            name="catch_test",
+            steps={"fail": FailingStep()},
+        )
+
+        # StepExecutionError is a FastroAIError
+        with pytest.raises(FastroAIError):
+            await pipeline.execute({}, None)
+
+
+# ============================================================================
+# CostCalculator Integration Tests
+# ============================================================================
+
+
+class TestCostCalculatorFeatures:
+    """Integration tests for CostCalculator functionality."""
+
+    def test_custom_pricing(self) -> None:
+        """Test adding custom model pricing."""
+        calc = CostCalculator()
+
+        # Add custom model
+        calc.add_model_pricing(
+            model="my-custom-model",
+            input_cost_per_1k_tokens=500,
+            output_cost_per_1k_tokens=1000,
+        )
+
+        cost = calc.calculate_cost(
+            model="my-custom-model",
+            input_tokens=2000,
+            output_tokens=1000,
+        )
+
+        # Input: 2000 * 500 / 1000 = 1000
+        # Output: 1000 * 1000 / 1000 = 1000
+        # Total: 2000 (with ceiling)
+        assert cost == 2000
+
+    def test_format_cost(self) -> None:
+        """Test cost formatting utilities."""
+        calc = CostCalculator()
+
+        formatted = calc.format_cost(1_500_000)
+
+        assert formatted["microcents"] == 1_500_000
+        assert formatted["cents"] == 150
+        assert formatted["dollars"] == 1.5
+
+    def test_dollars_to_microcents(self) -> None:
+        """Test dollar to microcent conversion."""
+        calc = CostCalculator()
+
+        assert calc.dollars_to_microcents(1.0) == 1_000_000
+        assert calc.dollars_to_microcents(0.01) == 10_000
+        assert calc.dollars_to_microcents(0.000001) == 1
+
+    def test_model_name_normalization(self) -> None:
+        """Test model name normalization handles prefixes."""
+        calc = CostCalculator()
+
+        # With prefix
+        cost1 = calc.calculate_cost("openai:gpt-4o", 1000, 500)
+        # Without prefix
+        cost2 = calc.calculate_cost("gpt-4o", 1000, 500)
+        # Case insensitive
+        cost3 = calc.calculate_cost("GPT-4o", 1000, 500)
+
+        assert cost1 == cost2 == cost3
+
+    def test_unknown_model_returns_zero(self) -> None:
+        """Test unknown models return zero cost."""
+        calc = CostCalculator()
+
+        cost = calc.calculate_cost(
+            model="unknown-model-xyz",
+            input_tokens=10000,
+            output_tokens=5000,
+        )
+
+        assert cost == 0
+
+    def test_get_model_pricing(self) -> None:
+        """Test retrieving model pricing."""
+        calc = CostCalculator()
+
+        pricing = calc.get_model_pricing("gpt-4o")
+        assert pricing is not None
+        assert "input_cost_per_1k_tokens" in pricing
+        assert "output_cost_per_1k_tokens" in pricing
+
+        # Unknown model
+        assert calc.get_model_pricing("unknown") is None
+
+
+# ============================================================================
+# Tracing Integration Tests
+# ============================================================================
+
+
+class TestTracingIntegration:
+    """Integration tests for tracing functionality."""
+
+    async def test_simple_tracer_logs_spans(self) -> None:
+        """SimpleTracer should log span starts and completions."""
+        import logging
+
+        tracer = SimpleTracer()
+        tracer.logger.setLevel(logging.DEBUG)
+
+        async with tracer.span("test_operation", user_id="123") as trace_id:
+            assert len(trace_id) == 36  # UUID format
+            tracer.log_metric(trace_id, "items_processed", 42)
+
+    async def test_noop_tracer_works_silently(self) -> None:
+        """NoOpTracer should work without side effects."""
+        from fastroai import NoOpTracer
+
+        tracer = NoOpTracer()
+
+        async with tracer.span("operation", key="value") as trace_id:
+            assert len(trace_id) == 36  # Still generates IDs
+            tracer.log_metric(trace_id, "metric", 100)
+            tracer.log_error(trace_id, ValueError("test"))
+
+    async def test_pipeline_passes_tracer_to_steps(self) -> None:
+        """Pipeline should pass tracer to step contexts."""
+        tracer_received = []
+
+        class TracerCheckStep(BaseStep[None, str]):
+            async def execute(self, context: StepContext[None]) -> str:
+                tracer_received.append(context.tracer)
+                return "done"
+
+        pipeline = Pipeline(
+            name="tracer_test",
+            steps={"check": TracerCheckStep()},
+        )
+
+        tracer = SimpleTracer()
+        await pipeline.execute({}, None, tracer=tracer)
+
+        assert len(tracer_received) == 1
+        # NoOpTracer is used internally when no tracer provided,
+        # but when tracer is provided, it should be passed through
+
+
+# ============================================================================
+# Real-World Scenario Integration Tests
+# ============================================================================
+
+
+class TestRealWorldScenarios:
+    """Integration tests for realistic usage patterns."""
+
+    async def test_data_processing_pipeline(self) -> None:
+        """Test a realistic data processing pipeline."""
+        from dataclasses import dataclass
+
+        @dataclass
+        class ProcessingDeps:
+            format_type: str
+            include_metadata: bool
+
+        class ParseStep(BaseStep[ProcessingDeps, dict[str, Any]]):
+            async def execute(self, context: StepContext[ProcessingDeps]) -> dict[str, Any]:
+                raw = context.get_input("raw_data")
+                return {"parsed": raw.upper(), "length": len(raw)}
+
+        class ValidateStep(BaseStep[ProcessingDeps, dict[str, Any]]):
+            async def execute(self, context: StepContext[ProcessingDeps]) -> dict[str, Any]:
+                parsed = context.get_dependency("parse")
+                if parsed["length"] < 3:
+                    raise ValueError("Data too short")
+                return {**parsed, "valid": True}
+
+        class FormatStep(BaseStep[ProcessingDeps, str]):
+            async def execute(self, context: StepContext[ProcessingDeps]) -> str:
+                validated = context.get_dependency("validate")
+                fmt = context.deps.format_type
+
+                if fmt == "json":
+                    import json
+
+                    return json.dumps(validated)
+                return str(validated)
+
+        pipeline: Pipeline[ProcessingDeps, dict[str, str], str] = Pipeline(
+            name="data_processor",
+            steps={
+                "parse": ParseStep(),
+                "validate": ValidateStep(),
+                "format": FormatStep(),
+            },
+            dependencies={
+                "validate": ["parse"],
+                "format": ["validate"],
+            },
+        )
+
+        deps = ProcessingDeps(format_type="json", include_metadata=True)
+        result = await pipeline.execute({"raw_data": "hello world"}, deps)
+
+        import json
+
+        assert result.output is not None
+        output = json.loads(result.output)
+        assert output["parsed"] == "HELLO WORLD"
+        assert output["valid"] is True
+
+    async def test_branching_pipeline_with_parallel_steps(self) -> None:
+        """Test pipeline with branching and parallel execution."""
+        execution_order: list[str] = []
+
+        class StartStep(BaseStep[None, str]):
+            async def execute(self, context: StepContext[None]) -> str:
+                execution_order.append("start")
+                return "initial"
+
+        class BranchAStep(BaseStep[None, str]):
+            async def execute(self, context: StepContext[None]) -> str:
+                await asyncio.sleep(0.05)
+                execution_order.append("branch_a")
+                return "a_result"
+
+        class BranchBStep(BaseStep[None, str]):
+            async def execute(self, context: StepContext[None]) -> str:
+                await asyncio.sleep(0.05)
+                execution_order.append("branch_b")
+                return "b_result"
+
+        class MergeStep(BaseStep[None, str]):
+            async def execute(self, context: StepContext[None]) -> str:
+                a = context.get_dependency("branch_a")
+                b = context.get_dependency("branch_b")
+                execution_order.append("merge")
+                return f"{a}+{b}"
+
+        pipeline = Pipeline(
+            name="branching",
+            steps={
+                "start": StartStep(),
+                "branch_a": BranchAStep(),
+                "branch_b": BranchBStep(),
+                "merge": MergeStep(),
+            },
+            dependencies={
+                "branch_a": ["start"],
+                "branch_b": ["start"],
+                "merge": ["branch_a", "branch_b"],
+            },
+        )
+
+        import time
+
+        start = time.perf_counter()
+        result = await pipeline.execute({}, None)
+        elapsed = time.perf_counter() - start
+
+        assert result.output == "a_result+b_result"
+        assert execution_order[0] == "start"
+        assert execution_order[-1] == "merge"
+        # branch_a and branch_b should be in parallel (order not guaranteed)
+        assert set(execution_order[1:3]) == {"branch_a", "branch_b"}
+        # Should take ~0.05s not ~0.1s due to parallelism
+        assert elapsed < 0.15
+
+    async def test_multi_turn_conversation_flow(self) -> None:
+        """Test multi-turn conversation with early termination."""
+
+        class InfoGatherer(BaseStep[None, ConversationState[dict[str, str]]]):
+            async def execute(self, context: StepContext[None]) -> ConversationState[dict[str, str]]:
+                message = context.get_input("message")
+                current_data = context.get_input("current_data") or {}
+
+                # Simulate extracting info from message
+                if "email" in message.lower():
+                    current_data["email"] = "user@example.com"
+                if "name" in message.lower():
+                    current_data["name"] = "John"
+
+                # Check if we have all required fields
+                required = {"name", "email"}
+                missing = required - set(current_data.keys())
+
+                if not missing:
+                    return ConversationState(
+                        status=ConversationStatus.COMPLETE,
+                        data=current_data,
+                    )
+
+                return ConversationState(
+                    status=ConversationStatus.INCOMPLETE,
+                    data=current_data,
+                    context={"missing_fields": list(missing)},
+                )
+
+        class ProcessOrder(BaseStep[None, str]):
+            async def execute(self, context: StepContext[None]) -> str:
+                info = context.get_dependency("gather")
+                return f"Order processed for {info.data['name']}"
+
+        pipeline: Pipeline[None, dict[str, Any], Any] = Pipeline(
+            name="order_flow",
+            steps={
+                "gather": InfoGatherer(),
+                "process": ProcessOrder(),
+            },
+            dependencies={"process": ["gather"]},
+        )
+
+        # Turn 1: Missing both
+        result1 = await pipeline.execute({"message": "I want to order"}, None)
+        assert result1.stopped_early
+        assert result1.conversation_state is not None
+        assert set(result1.conversation_state.context["missing_fields"]) == {"name", "email"}
+
+        # Turn 2: Provide name
+        assert result1.conversation_state.data is not None
+        result2 = await pipeline.execute(
+            {"message": "My name is John", "current_data": result1.conversation_state.data},
+            None,
+        )
+        assert result2.stopped_early
+        assert result2.conversation_state is not None
+        assert result2.conversation_state.context["missing_fields"] == ["email"]
+
+        # Turn 3: Provide email - should complete
+        assert result2.conversation_state.data is not None
+        result3 = await pipeline.execute(
+            {"message": "My email is user@example.com", "current_data": result2.conversation_state.data},
+            None,
+        )
+        assert not result3.stopped_early
+        assert result3.output == "Order processed for John"

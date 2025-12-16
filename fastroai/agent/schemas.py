@@ -24,7 +24,8 @@ class AgentConfig(BaseModel):
 
     All parameters have sensible defaults. Override as needed.
 
-    Example:
+    Examples:
+        ```python
         # Minimal - uses all defaults
         config = AgentConfig()
 
@@ -40,6 +41,7 @@ class AgentConfig(BaseModel):
 
         # Or pass kwargs directly to FastroAgent
         agent = FastroAgent(model="openai:gpt-4o-mini", temperature=0.5)
+        ```
     """
 
     model: str = DEFAULT_MODEL
@@ -87,7 +89,8 @@ class ChatResponse(BaseModel, Generic[OutputT]):
         processing_time_ms: Wall-clock time in milliseconds.
         trace_id: Distributed tracing correlation ID.
 
-    Example:
+    Examples:
+        ```python
         response = await agent.run("What is 2+2?")
 
         print(f"Answer: {response.content}")
@@ -109,8 +112,10 @@ class ChatResponse(BaseModel, Generic[OutputT]):
         response = await agent.run("What is 2+2?")
         print(response.output.value)  # 4
         print(response.output.explanation)  # "2 plus 2 equals 4"
+        ```
 
-    Why microcents?
+    Note:
+        Why microcents?
         Floating-point math has precision errors:
         >>> 0.1 + 0.2
         0.30000000000000004
@@ -156,7 +161,11 @@ class ChatResponse(BaseModel, Generic[OutputT]):
     def cost_dollars(self) -> float:
         """Cost in dollars for display purposes.
 
-        Use cost_microcents for calculations to avoid floating-point errors.
+        Returns:
+            Cost as a float in dollars.
+
+        Note:
+            Use cost_microcents for calculations to avoid floating-point errors.
         """
         return self.cost_microcents / 1_000_000
 
@@ -167,12 +176,14 @@ class StreamChunk(BaseModel, Generic[OutputT]):
     Most chunks have content with is_final=False.
     The last chunk has is_final=True with complete usage data.
 
-    Example:
+    Examples:
+        ```python
         async for chunk in agent.run_stream("Tell me a story"):
             if chunk.is_final:
                 print(f"\\nTotal cost: ${chunk.usage_data.cost_dollars:.6f}")
             else:
                 print(chunk.content, end="", flush=True)
+        ```
     """
 
     content: str = ""

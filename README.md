@@ -138,11 +138,17 @@ print(response.trace_id)
 
 `SimpleTracer` logs to Python's logging module. For production, implement the `Tracer` protocol to integrate with Logfire, OpenTelemetry, Datadog, or your preferred observability platform.
 
-### Pipelines
+## Pipelines
 
 For multi-step workflows, Pipeline orchestrates execution and parallelizes where possible.
 
-The simplest way to create a pipeline step is with `.as_step()`:
+### Three Ways to Define Steps
+
+FastroAI offers three approaches, from simplest to most flexible:
+
+#### 1. `agent.as_step()` - Single-Agent Steps
+
+The simplest way to create a pipeline step:
 
 ```python
 from fastroai import FastroAgent, Pipeline
@@ -161,7 +167,84 @@ result = await pipeline.execute({"text": "Long article..."}, deps=None)
 print(result.output)
 ```
 
-#### Multi-step Pipelines
+#### 2. `@step` Decorator - Function-Based Steps
+
+For steps that need logic beyond a single agent call:
+
+```python
+from fastroai import step, Pipeline, StepContext
+
+@step
+async def transform(ctx: StepContext[None]) -> str:
+    text = ctx.get_input("text")
+    return text.upper()
+
+@step(timeout=30.0, retries=2)
+async def classify(ctx: StepContext[None]) -> str:
+    text = ctx.get_dependency("transform")
+    response = await ctx.run(classifier_agent, f"Classify: {text}")
+    return response.output
+
+pipeline = Pipeline(
+    name="processor",
+    steps={"transform": transform, "classify": classify},
+    dependencies={"classify": ["transform"]},
+)
+```
+
+The `@step` decorator accepts configuration options:
+- `timeout`: Maximum execution time in seconds for `ctx.run()` calls
+- `retries`: Number of retry attempts on failure
+- `retry_delay`: Base delay between retries (exponential backoff)
+- `cost_budget`: Maximum cost in microcents for this step
+
+#### 3. `BaseStep` Class - Complex Multi-Agent Steps
+
+For steps that need multiple agents, conditional logic, or complex orchestration:
+
+```python
+from fastroai import BaseStep, StepContext, FastroAgent
+
+class ResearchStep(BaseStep[MyDeps, dict]):
+    def __init__(self):
+        self.classifier = FastroAgent(model="gpt-4o-mini", system_prompt="Classify.")
+        self.writer = FastroAgent(model="gpt-4o", system_prompt="Write reports.")
+
+    async def execute(self, context: StepContext[MyDeps]) -> dict:
+        topic = context.get_input("topic")
+
+        # Use ctx.run() for automatic deps/tracer forwarding and usage tracking
+        category = await context.run(self.classifier, f"Classify: {topic}")
+
+        if "technical" in category.output.lower():
+            report = await context.run(self.writer, f"Technical report on: {topic}")
+        else:
+            report = await context.run(self.writer, f"General summary of: {topic}")
+
+        return {"category": category.output, "report": report.content}
+```
+
+### `ctx.run()` - The Key Integration Point
+
+When calling agents from within a step, always use `ctx.run()`:
+
+```python
+response = await ctx.run(agent, "Your message")
+```
+
+This automatically:
+- Passes your application dependencies (`deps`) to the agent
+- Forwards the tracer for distributed tracing
+- Accumulates usage in `ctx.usage` for pipeline-wide tracking
+- Enforces timeout, retries, and cost budget from config
+
+You can override config per-call:
+
+```python
+response = await ctx.run(agent, "message", timeout=60.0, retries=3)
+```
+
+### Multi-Step Pipelines with Parallelism
 
 Chain steps by declaring dependencies. FastroAI runs independent steps in parallel:
 
@@ -194,30 +277,92 @@ print(f"Total cost: ${result.usage.total_cost_dollars:.6f}")
 
 The prompt can be a static string or a function receiving the step context. Use `get_input()` for pipeline inputs and `get_dependency()` for outputs from previous steps.
 
-#### Custom Steps with `BaseStep`
+### Pipeline Configuration
 
-For steps that need conditional logic, multiple agent calls, or custom transformations, subclass `BaseStep`:
+Configure defaults for all steps in a pipeline:
 
 ```python
-from fastroai import BaseStep, StepContext, FastroAgent
+from fastroai import Pipeline, PipelineConfig, StepConfig
 
-class ResearchStep(BaseStep[None, dict]):
-    def __init__(self):
-        self.summarizer = FastroAgent(model="gpt-4o-mini", system_prompt="Summarize.")
-        self.fact_checker = FastroAgent(model="gpt-4o", system_prompt="Verify facts.")
-
-    async def execute(self, context: StepContext[None]) -> dict:
-        topic = context.get_input("topic")
-        summary = await self.summarizer.run(f"Summarize: {topic}")
-
-        if "unverified" in summary.content.lower():
-            verified = await self.fact_checker.run(f"Verify: {summary.content}")
-            return {"summary": summary.content, "verified": verified.content}
-
-        return {"summary": summary.content, "verified": None}
+pipeline = Pipeline(
+    name="processor",
+    steps={"extract": extract_step, "classify": classify_step},
+    dependencies={"classify": ["extract"]},
+    config=PipelineConfig(
+        timeout=30.0,      # Default timeout for all steps
+        retries=2,         # Default retry count
+        cost_budget=100_000,  # Budget in microcents ($0.10)
+    ),
+    step_configs={
+        "classify": StepConfig(timeout=60.0),  # Override for specific step
+    },
+)
 ```
 
-### Safe Tools
+**Config inheritance** (most specific wins):
+1. Pipeline default config (`PipelineConfig`)
+2. Step class config (`.config` attribute on `@step` decorated functions)
+3. Per-step override (`step_configs[step_id]`)
+4. Per-call override via `ctx.run(timeout=..., retries=...)`
+
+### Multi-Turn Conversations
+
+Steps can signal that more information is needed using `ConversationState`:
+
+```python
+from fastroai import BaseStep, ConversationState, ConversationStatus
+
+class GatherInfoStep(BaseStep[None, ConversationState[dict]]):
+    async def execute(self, context) -> ConversationState[dict]:
+        message = context.get_input("message")
+        current_data = context.get_input("current_data") or {}
+
+        # Extract info from message...
+        if "email" in message.lower():
+            current_data["email"] = extract_email(message)
+
+        # Check if complete
+        required = {"name", "email"}
+        missing = required - set(current_data.keys())
+
+        if not missing:
+            return ConversationState(
+                status=ConversationStatus.COMPLETE,
+                data=current_data,
+            )
+
+        return ConversationState(
+            status=ConversationStatus.INCOMPLETE,
+            data=current_data,
+            context={"missing": list(missing)},
+        )
+```
+
+When a step returns `INCOMPLETE`, the pipeline stops early. Use `result.stopped_early` and `result.conversation_state` to handle partial completion.
+
+### Pipeline Routing
+
+Route between pipelines based on input:
+
+```python
+from fastroai import BasePipeline
+
+class InvestmentRouter(BasePipeline[MyDeps, dict, Plan]):
+    def __init__(self):
+        super().__init__("investment_router")
+        self.register_pipeline("simple", simple_pipeline)
+        self.register_pipeline("complex", complex_pipeline)
+
+    async def route(self, input_data: dict, deps: MyDeps) -> str:
+        if input_data.get("amount", 0) < 10000:
+            return "simple"
+        return "complex"
+
+router = InvestmentRouter()
+result = await router.execute({"amount": 50000}, deps)
+```
+
+## Safe Tools
 
 The `@safe_tool` decorator wraps tools with timeout, retry, and graceful error handling. When something goes wrong, the AI receives an error message instead of the request failing entirely.
 
@@ -234,6 +379,18 @@ async def fetch_weather(location: str) -> str:
 
 If the API times out after two retries, the AI receives "Tool timed out after 2 attempts" and can respond appropriately or try a different approach.
 
+Custom error messages:
+
+```python
+@safe_tool(
+    timeout=30,
+    on_timeout="Search is taking too long. Try a simpler query.",
+    on_error="Search unavailable: {error}",
+)
+async def search(query: str) -> str:
+    ...
+```
+
 Group tools into toolsets:
 
 ```python
@@ -247,6 +404,30 @@ agent = FastroAgent(
     toolsets=[WeatherToolset()],
 )
 ```
+
+## Error Handling
+
+FastroAI provides a structured error hierarchy:
+
+```python
+from fastroai import FastroAIError, PipelineValidationError, StepExecutionError, CostBudgetExceededError
+
+try:
+    result = await pipeline.execute(inputs, deps)
+except CostBudgetExceededError as e:
+    print(f"Over budget: {e.actual_microcents} > {e.budget_microcents}")
+except StepExecutionError as e:
+    print(f"Step '{e.step_id}' failed: {e.original_error}")
+except PipelineValidationError as e:
+    print(f"Invalid pipeline config: {e}")
+except FastroAIError as e:
+    print(f"FastroAI error: {e}")
+```
+
+- `FastroAIError`: Base class for all FastroAI errors
+- `PipelineValidationError`: Invalid pipeline configuration (cycles, unknown steps)
+- `StepExecutionError`: Step failed during execution (wraps original exception)
+- `CostBudgetExceededError`: Cost budget was exceeded
 
 ## Development
 
