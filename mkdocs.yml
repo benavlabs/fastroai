@@ -1,0 +1,131 @@
+site_name: FastroAI
+site_description: Lightweight AI orchestration built on PydanticAI. Cost tracking, pipelines, and production-safe tools.
+site_author: Benav Labs LLC
+site_url: https://benavlabs.github.io/fastroai
+
+repo_url: https://github.com/benavlabs/fastroai
+repo_name: benavlabs/fastroai
+
+theme:
+  name: material
+  font:
+    text: Ubuntu
+    code: Roboto Mono
+  logo: assets/logo-icon.png
+  favicon: assets/logo-icon.png
+
+  features:
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.tabs
+    - navigation.indexes
+    - search.suggest
+    - content.code.annotate
+    - navigation.top
+    - navigation.footer
+
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: pink
+      accent: pink
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: pink
+      accent: pink
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+nav:
+  - FastroAI: index.md
+  - Learn:
+      - Learning Path: learn/index.md
+      # - "1. LLM Basics": learn/1-llm-basics.md
+      # - "2. Your First Agent": learn/2-your-first-agent.md
+      # - "3. Cost Tracking": learn/3-cost-tracking.md
+      # - "4. Structured Output": learn/4-structured-output.md
+      # - "5. Tools": learn/5-tools.md
+      # - "6. Conversations": learn/6-conversations.md
+      # - "7. Streaming": learn/7-streaming.md
+      # - "8. Pipelines": learn/8-pipelines.md
+      # - "9. Parallel Execution": learn/9-parallel-execution.md
+      # - "10. Production": learn/10-production.md
+  - Guides:
+      - Overview: guides/index.md
+      - FastroAgent: guides/fastro-agent.md
+      - Cost Calculator: guides/cost-calculator.md
+      - Pipelines: guides/pipelines.md
+      - Safe Tools: guides/safe-tools.md
+      - Tracing: guides/tracing.md
+  - Recipes:
+      - Overview: recipes/index.md
+      # - Document Processor: recipes/document-processor.md
+      # - Parallel Research: recipes/parallel-research.md
+      # - Conversation Bot: recipes/conversation-bot.md
+      # - Cost Budget Enforcement: recipes/cost-budget-enforcement.md
+      # - Custom Model Pricing: recipes/custom-model-pricing.md
+      # - Early Termination: recipes/early-termination.md
+  - API Reference:
+      - Overview: api/index.md
+      - Agent: api/agent.md
+      - Pipelines: api/pipelines.md
+      - Tools: api/tools.md
+      - Usage: api/usage.md
+      - Tracing: api/tracing.md
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [fastroai]
+          options:
+            docstring_style: google
+            show_source: false
+            show_bases: false
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/benavlabs/fastroai
+      name: FastroAI on GitHub
+    - icon: fontawesome/brands/discord
+      link: https://discord.com/invite/TEmPs22gqB
+      name: Discord Community
+
+extra_css:
+  - assets/extra.css
+
+copyright: |
+  &copy; 2025 <a href="https://benav.io" target="_blank">Benav Labs LLC</a>
