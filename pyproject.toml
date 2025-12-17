@@ -1,6 +1,6 @@
 [project]
 name = "fastroai"
-version = "0.2.0"
+version = "0.3.0"
 description = "Lightweight AI orchestration built on PydanticAI"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -28,6 +28,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = []
+logfire = [
+    "logfire>=4.15.1",
+]
 
 [build-system]
 requires = ["hatchling"]

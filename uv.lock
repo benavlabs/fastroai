@@ -804,6 +804,11 @@ dependencies = [
     { name = "pydantic-ai" },
 ]
 
+[package.optional-dependencies]
+logfire = [
+    { name = "logfire" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "mypy" },
@@ -821,6 +826,7 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "genai-prices", specifier = ">=0.0.47" },
+    { name = "logfire", marker = "extra == 'logfire'", specifier = ">=4.15.1" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-ai", specifier = ">=1.26.0" },
 ]

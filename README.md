@@ -32,7 +32,7 @@ FastroAI wraps [PydanticAI](https://ai.pydantic.dev/) with production essentials
 - **Cost Tracking**: Automatic cost calculation in microcents. No floating-point drift.
 - **Pipelines**: DAG-based workflows with automatic parallelization.
 - **Safe Tools**: Timeout, retry, and graceful error handling for AI tools.
-- **Tracing**: Protocol-based integration with any observability platform.
+- **Tracing**: Built-in Logfire integration, or bring your own observability platform.
 
 ## Installation
 
@@ -40,10 +40,17 @@ FastroAI wraps [PydanticAI](https://ai.pydantic.dev/) with production essentials
 pip install fastroai
 ```
 
+With Logfire tracing:
+
+```bash
+pip install fastroai[logfire]
+```
+
 Or with uv:
 
 ```bash
 uv add fastroai
+uv add "fastroai[logfire]"  # With Logfire tracing
 ```
 
 ## Quick Start

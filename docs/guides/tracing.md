@@ -79,6 +79,30 @@ The trace ID appears in every log line, so you can grep for it:
 grep "abc12345" app.log
 ```
 
+### LogfireTracer
+
+Integrates with [Pydantic Logfire](https://logfire.pydantic.dev/), a modern observability platform built by the Pydantic team. Install with:
+
+```bash
+pip install fastroai[logfire]
+```
+
+Usage:
+
+```python
+import logfire
+from fastroai import FastroAgent, LogfireTracer
+
+# Configure logfire once at startup
+logfire.configure()
+
+tracer = LogfireTracer()
+agent = FastroAgent(model="openai:gpt-4o")
+response = await agent.run("Hello!", tracer=tracer)
+```
+
+View your traces in the Logfire dashboard at [logfire.pydantic.dev](https://logfire.pydantic.dev).
+
 ### NoOpTracer
 
 Does nothing. Use when tracing is disabled, in tests, or when you need trace IDs for compatibility but don't want actual tracing:
@@ -124,27 +148,7 @@ Three methods. That's it. `span()` creates a context manager that yields a trace
 
 ### Logfire
 
-```python
-import uuid
-import logfire
-from contextlib import asynccontextmanager
-
-class LogfireTracer:
-    @asynccontextmanager
-    async def span(self, name: str, **attrs):
-        trace_id = str(uuid.uuid4())
-        with logfire.span(name, trace_id=trace_id, **attrs):
-            yield trace_id
-
-    def log_metric(self, trace_id: str, name: str, value):
-        logfire.metric(name, value, trace_id=trace_id)
-
-    def log_error(self, trace_id: str, error: Exception, context=None):
-        logfire.error(str(error), trace_id=trace_id, **(context or {}))
-
-tracer = LogfireTracer()
-response = await agent.run("Hello!", tracer=tracer)
-```
+FastroAI includes a built-in `LogfireTracer`. See the [LogfireTracer](#logfiretracer) section above for usage.
 
 Logfire gives you a nice UI to explore traces, and the Pydantic team maintains it, so it plays well with PydanticAI.
 
@@ -238,6 +242,8 @@ Log the trace ID in your application code, and you can trace from "user clicked 
 The real value of tracing is correlation. Here's how to connect AI calls with your request handling:
 
 ```python
+from fastroai import LogfireTracer
+
 async def handle_request(request):
     tracer = LogfireTracer()
 
@@ -277,6 +283,7 @@ Without tracing, you're debugging blind.
 |-----------|----------|
 | Tracer protocol | `fastroai/tracing/tracer.py` |
 | SimpleTracer | `fastroai/tracing/tracer.py` |
+| LogfireTracer | `fastroai/tracing/tracer.py` |
 | NoOpTracer | `fastroai/tracing/tracer.py` |
 
 ---
