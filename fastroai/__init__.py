@@ -54,7 +54,7 @@ from .pipelines import (
     step,
 )
 from .tools import FunctionToolsetBase, SafeToolset, safe_tool
-from .tracing import NoOpTracer, SimpleTracer, Tracer
+from .tracing import LogfireTracer, NoOpTracer, SimpleTracer, Tracer
 from .usage import CostCalculator
 
 __all__ = [
@@ -90,6 +90,7 @@ __all__ = [
     # Tracing
     "Tracer",
     "SimpleTracer",
+    "LogfireTracer",
     "NoOpTracer",
     # Usage
     "CostCalculator",
