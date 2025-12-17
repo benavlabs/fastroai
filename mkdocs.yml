@@ -109,7 +109,7 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          paths: [fastroai]
+          paths: [.]
           options:
             docstring_style: google
             show_source: false
