@@ -11,35 +11,45 @@ All classes, functions, and protocols documented here are considered stable and 
 
 <div class="grid cards" markdown>
 
--   :material-robot:{ .lg .middle } **[Agent](agent.md)**
+-   :material-robot:{ .lg .middle } **Agent**
 
     ---
 
     FastroAgent, AgentConfig, ChatResponse, StreamChunk
 
--   :material-pipe:{ .lg .middle } **[Pipelines](pipelines.md)**
+    [:octicons-arrow-right-24: Learn more](agent.md)
+
+-   :material-pipe:{ .lg .middle } **Pipelines**
 
     ---
 
     Pipeline, BaseStep, StepContext, configurations
 
--   :material-tools:{ .lg .middle } **[Tools](tools.md)**
+    [:octicons-arrow-right-24: Learn more](pipelines.md)
+
+-   :material-tools:{ .lg .middle } **Tools**
 
     ---
 
     @safe_tool decorator, SafeToolset, FunctionToolsetBase
 
--   :material-cash:{ .lg .middle } **[Usage](usage.md)**
+    [:octicons-arrow-right-24: Learn more](tools.md)
+
+-   :material-cash:{ .lg .middle } **Usage**
 
     ---
 
     CostCalculator with microcents precision
 
--   :material-chart-line:{ .lg .middle } **[Tracing](tracing.md)**
+    [:octicons-arrow-right-24: Learn more](usage.md)
+
+-   :material-chart-line:{ .lg .middle } **Tracing**
 
     ---
 
-    Tracer protocol, SimpleTracer, NoOpTracer
+    Tracer protocol, SimpleTracer, LogfireTracer, NoOpTracer
+
+    [:octicons-arrow-right-24: Learn more](tracing.md)
 
 </div>
 
@@ -74,6 +84,7 @@ from fastroai import (
     # Tracing
     Tracer,
     SimpleTracer,
+    LogfireTracer,
     NoOpTracer,
 
     # Usage

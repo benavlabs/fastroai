@@ -33,7 +33,7 @@ The Changelog documents all notable changes made to FastroAI. This includes new 
 
 ---
 
-## [0.2.0] - Dec 15, 2025
+## [0.2.0] - Dec 16, 2025
 
 #### Added
 - **FastroAgent** - PydanticAI wrapper with automatic cost calculation and tracing
@@ -53,7 +53,7 @@ The Changelog documents all notable changes made to FastroAI. This includes new 
 
 ---
 
-## [0.1.0] - Dec 10, 2025
+## [0.1.0] - Dec 15, 2025
 
 Initial release.
 
