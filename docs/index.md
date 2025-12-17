@@ -30,6 +30,8 @@
 </p>
 <hr>
 
+> **Note**: FastroAI is experimental, it was extracted into a package from code that we had in production in different contexts. We built it for ourselves but you're free to use and contribute. The API may change between versions and you'll probably find bugs, we're here to fix them. Use in production at your own risk (we do).
+
 ## Features
 
 - **Cost Tracking**: Automatic cost calculation in microcents. Integer math, no floating-point drift.

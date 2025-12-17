@@ -25,7 +25,7 @@
 
 FastroAI wraps [PydanticAI](https://ai.pydantic.dev/) with production essentials: **cost tracking in microcents**, **multi-step pipelines**, and **tools that handle failures gracefully**.
 
-> **Note**: FastroAI is experimental, it was extracted into a package from code that we had in production in different contexts. We built it for ourselves but you're free to use and contribute to. The API may change between versions and you'll probably find bugs, we're here to fix them. Use in production at your own risk (we do).
+> **Note**: FastroAI is experimental, it was extracted into a package from code that we had in production in different contexts. We built it for ourselves but you're free to use and contribute. The API may change between versions and you'll probably find bugs, we're here to fix them. Use in production at your own risk (we do).
 
 ## Features
 
