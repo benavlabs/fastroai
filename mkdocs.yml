@@ -76,6 +76,7 @@ nav:
       - Tools: api/tools.md
       - Usage: api/usage.md
       - Tracing: api/tracing.md
+  - Changelog: changelog.md
 
 markdown_extensions:
   - admonition
