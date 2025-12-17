@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://github.com/benavlabs/fastroai">
-    <img src="assets/logo.png" alt="FastroAI Logo" width="20%">
+    <img src="assets/logo.png" alt="FastroAI Logo" width="25%">
   </a>
 </p>
 <p align="center" markdown=1>
