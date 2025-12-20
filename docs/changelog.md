@@ -6,7 +6,7 @@ The Changelog documents all notable changes made to FastroAI. This includes new 
 
 ---
 
-## [0.4.0] - Dec 19, 2025
+## [0.4.0] - Dec 20, 2025
 
 #### Added
 - **Enhanced Cost Tracking** by [@igorbenav](https://github.com/igorbenav)
