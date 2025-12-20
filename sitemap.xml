@@ -2,66 +2,86 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://benavlabs.github.io/fastroai/</loc>
-         <lastmod>2025-12-17</lastmod>
+         <lastmod>2025-12-20</lastmod>
     </url>
     <url>
          <loc>https://benavlabs.github.io/fastroai/changelog/</loc>
-         <lastmod>2025-12-17</lastmod>
+         <lastmod>2025-12-20</lastmod>
     </url>
     <url>
          <loc>https://benavlabs.github.io/fastroai/api/</loc>
-         <lastmod>2025-12-17</lastmod>
+         <lastmod>2025-12-20</lastmod>
     </url>
     <url>
          <loc>https://benavlabs.github.io/fastroai/api/agent/</loc>
-         <lastmod>2025-12-17</lastmod>
+         <lastmod>2025-12-20</lastmod>
     </url>
     <url>
          <loc>https://benavlabs.github.io/fastroai/api/pipelines/</loc>
-         <lastmod>2025-12-17</lastmod>
+         <lastmod>2025-12-20</lastmod>
     </url>
     <url>
          <loc>https://benavlabs.github.io/fastroai/api/tools/</loc>
-         <lastmod>2025-12-17</lastmod>
+         <lastmod>2025-12-20</lastmod>
     </url>
     <url>
          <loc>https://benavlabs.github.io/fastroai/api/tracing/</loc>
-         <lastmod>2025-12-17</lastmod>
+         <lastmod>2025-12-20</lastmod>
     </url>
     <url>
          <loc>https://benavlabs.github.io/fastroai/api/usage/</loc>
-         <lastmod>2025-12-17</lastmod>
+         <lastmod>2025-12-20</lastmod>
     </url>
     <url>
          <loc>https://benavlabs.github.io/fastroai/guides/</loc>
-         <lastmod>2025-12-17</lastmod>
+         <lastmod>2025-12-20</lastmod>
     </url>
     <url>
          <loc>https://benavlabs.github.io/fastroai/guides/cost-calculator/</loc>
-         <lastmod>2025-12-17</lastmod>
+         <lastmod>2025-12-20</lastmod>
     </url>
     <url>
          <loc>https://benavlabs.github.io/fastroai/guides/fastro-agent/</loc>
-         <lastmod>2025-12-17</lastmod>
+         <lastmod>2025-12-20</lastmod>
     </url>
     <url>
          <loc>https://benavlabs.github.io/fastroai/guides/pipelines/</loc>
-         <lastmod>2025-12-17</lastmod>
+         <lastmod>2025-12-20</lastmod>
     </url>
     <url>
          <loc>https://benavlabs.github.io/fastroai/guides/safe-tools/</loc>
-         <lastmod>2025-12-17</lastmod>
+         <lastmod>2025-12-20</lastmod>
     </url>
     <url>
          <loc>https://benavlabs.github.io/fastroai/guides/tracing/</loc>
-         <lastmod>2025-12-17</lastmod>
+         <lastmod>2025-12-20</lastmod>
     </url>
     <url>
          <loc>https://benavlabs.github.io/fastroai/learn/</loc>
-         <lastmod>2025-12-17</lastmod>
+         <lastmod>2025-12-20</lastmod>
+    </url>
+    <url>
+         <loc>https://benavlabs.github.io/fastroai/learn/0-how-language-models-work/</loc>
+         <lastmod>2025-12-20</lastmod>
+    </url>
+    <url>
+         <loc>https://benavlabs.github.io/fastroai/learn/1-what-llms-can-and-cant-do/</loc>
+         <lastmod>2025-12-20</lastmod>
+    </url>
+    <url>
+         <loc>https://benavlabs.github.io/fastroai/learn/2-your-first-agent/</loc>
+         <lastmod>2025-12-20</lastmod>
+    </url>
+    <url>
+         <loc>https://benavlabs.github.io/fastroai/learn/3-letting-agents-do-things/</loc>
+         <lastmod>2025-12-20</lastmod>
+    </url>
+    <url>
+         <loc>https://benavlabs.github.io/fastroai/learn/4-getting-data-back/</loc>
+         <lastmod>2025-12-20</lastmod>
     </url>
     <url>
          <loc>https://benavlabs.github.io/fastroai/recipes/</loc>
-         <lastmod>2025-12-17</lastmod>
+         <lastmod>2025-12-20</lastmod>
     </url>
 </urlset>
