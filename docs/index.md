@@ -102,7 +102,7 @@ agent = FastroAgent(
 async def main():
     response = await agent.run("What is 2 + 2?")
 
-    print(response.content)
+    print(response.output)
     print(f"Tokens: {response.input_tokens} in, {response.output_tokens} out")
     print(f"Cost: ${response.cost_dollars:.6f}")
 
@@ -134,7 +134,7 @@ agent = FastroAgent(
 )
 
 response = await agent.run("What is the capital of France?")
-print(response.content)
+print(response.output)
 print(f"Cost: ${response.cost_dollars:.6f}")
 ```
 
@@ -179,13 +179,13 @@ classifier = FastroAgent(model="openai:gpt-4o-mini", system_prompt="Classify doc
 async def extract(ctx: StepContext[None]) -> str:
     document = ctx.get_input("document")
     response = await ctx.run(extractor, f"Extract entities: {document}")
-    return response.content
+    return response.output
 
 @step(timeout=30.0, retries=2)
 async def classify(ctx: StepContext[None]) -> str:
     entities = ctx.get_dependency("extract")
     response = await ctx.run(classifier, f"Classify based on: {entities}")
-    return response.content
+    return response.output
 
 pipeline = Pipeline(
     name="document_processor",

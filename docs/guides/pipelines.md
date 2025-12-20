@@ -51,7 +51,7 @@ class ExtractStep(BaseStep[None, str]):
     async def execute(self, ctx: StepContext[None]) -> str:
         document = ctx.get_input("document")
         response = await ctx.run(self.agent, f"Extract entities: {document}")
-        return response.content
+        return response.output
 
 class ClassifyStep(BaseStep[None, str]):
     def __init__(self):
@@ -63,7 +63,7 @@ class ClassifyStep(BaseStep[None, str]):
     async def execute(self, ctx: StepContext[None]) -> str:
         entities = ctx.get_dependency("extract")
         response = await ctx.run(self.agent, f"Classify based on: {entities}")
-        return response.content
+        return response.output
 
 pipeline = Pipeline(
     name="document_processor",
@@ -163,7 +163,7 @@ class ResearchStep(BaseStep[MyDeps, dict]):
         else:
             report = await ctx.run(self.writer, f"General summary of: {topic}")
 
-        return {"category": category.output, "report": report.content}
+        return {"category": category.output, "report": report.output}
 ```
 
 ## The `ctx.run()` Method

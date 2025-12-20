@@ -1,148 +1,147 @@
 # Learn FastroAI
 
-**Build AI applications step by step.**
+Build AI applications by understanding how they actually work.
 
-This isn't a reference manual. Each section builds on the previous, and by the end you'll know how to use FastroAI's cost tracking, pipelines, and tools in production.
+This isn't a feature tour. We start from how language models work, build up to agents and tools, and end with production patterns. Each section builds on the previous, and by the end you'll understand not just how to use FastroAI, but why it's designed the way it is.
 
 !!! tip "Choose Your Starting Point"
-    **New to AI development?** Start from the beginning - we cover everything from basic LLM concepts.
+    **New to LLMs?** Start from the beginning. We cover tokenization, transformers, and what's actually happening when you call an API.
 
-    **Already know PydanticAI?** Jump to Cost Tracking (section 3) to see what FastroAI adds.
+    **Already understand LLMs?** Jump to Section 2 (Your First Agent) to start building.
+
+    **Know PydanticAI?** Skip to Section 3 (Letting Agents Do Things) for tools and what FastroAI adds.
 
     **Just want code?** Check the [Quick Start](../index.md#quick-start) for the 2-minute setup.
 
-## What You'll Build
+## What You'll Learn
 
-Instead of toy examples, you'll work through progressively complex scenarios that mirror real production applications:
+=== "Foundations"
 
-=== "Fundamentals"
+    **Understand what you're building on**
 
-    **Understand the building blocks**
+    - How language models actually work (not just API calls)
+    - Tokenization and why it matters for costs
+    - What LLMs do well and where they fail
+    - The mechanics behind "AI agents"
 
-    - What LLMs are and how to call them
-    - Creating agents with system prompts
-    - Understanding tokens and why costs matter
-    - Structured output with Pydantic models
+=== "Building Applications"
 
-=== "Production Features"
+    **Create real AI features**
 
-    **Add real-world capabilities**
+    - Agents with system prompts
+    - Tools that let agents interact with the world
+    - Structured output for type-safe responses
+    - Cost tracking and error handling
 
-    - Tools that call external services safely
-    - Conversation history and stateless patterns
-    - Streaming responses for better UX
-    - Tracing for debugging and observability
+=== "Production Patterns"
 
-=== "Orchestration"
+    **Ship with confidence**
 
-    **Build complex workflows**
-
-    - Multi-step pipelines with dependencies
-    - Parallel execution for performance
-    - Cost budgets and early termination
-    - Error handling that doesn't crash requests
+    - Multi-step workflows with pipelines
+    - Tracing and observability
+    - RAG for when the model doesn't know enough
 
 ## The Learning Path
 
 <div class="grid cards" markdown>
 
--   :material-school:{ .lg .middle } **1. LLM Basics**
+-   :material-brain:{ .lg .middle } **[0. How Language Models Work](0-how-language-models-work.md)**
 
-    *"What are these things anyway?"*
+    *Understanding what you're actually calling*
 
     ---
 
-    What language models are, how to call them, understanding tokens and why costs matter for production applications.
+    From early NLP to modern transformers. Tokenization, attention, and why "predict the next token" leads to surprisingly capable systems. You'll understand what happens between your API call and the response.
+
+    [:octicons-arrow-right-24: Start here](0-how-language-models-work.md)
+
+-   :material-check-circle-outline:{ .lg .middle } **[1. What LLMs Can and Can't Do](1-what-llms-can-and-cant-do.md)**
+
+    *Capabilities and limitations*
+
+    ---
+
+    LLMs are good at specific things and terrible at others. Understanding this gap is what separates working applications from impressive demos that break in production.
+
+    [:octicons-arrow-right-24: Continue](1-what-llms-can-and-cant-do.md)
+
+-   :material-robot:{ .lg .middle } **[2. Your First Agent](2-your-first-agent.md)**
+
+    *From API calls to agents*
+
+    ---
+
+    Creating a FastroAgent, writing system prompts that work, running queries, and understanding what comes back. The foundation for everything else.
+
+    [:octicons-arrow-right-24: Continue](2-your-first-agent.md)
+
+-   :material-tools:{ .lg .middle } **[3. Letting Agents Do Things](3-letting-agents-do-things.md)**
+
+    *Tools and function calling*
+
+    ---
+
+    An agent that can only talk isn't very useful. Tools let agents call APIs, query databases, and interact with the world. `@safe_tool` makes them production-safe.
+
+    [:octicons-arrow-right-24: Continue](3-letting-agents-do-things.md)
+
+-   :material-code-braces:{ .lg .middle } **[4. Getting Data Back, Not Just Text](4-getting-data-back.md)**
+
+    *Structured output*
+
+    ---
+
+    Your agent returns text, but your application needs data. Using Pydantic models to get type-safe responses you can actually work with.
+
+    [:octicons-arrow-right-24: Continue](4-getting-data-back.md)
+
+-   :material-cash:{ .lg .middle } **5. Tracking What You Spend**
+
+    *Tokens cost money*
+
+    ---
+
+    Remember tokens from Section 0? Each one costs money. Why microcents matter for billing, how to track usage across calls, and setting budgets before you get surprised.
 
     *(Coming soon)*
 
--   :material-robot:{ .lg .middle } **2. Your First Agent**
+-   :material-alert-circle:{ .lg .middle } **6. When Things Go Wrong**
 
-    *"Hello, AI world"*
+    *Error handling*
 
     ---
 
-    Creating a FastroAgent, crafting system prompts, running queries, and understanding the response format.
+    APIs time out. External services fail. The model returns something unexpected. Building AI applications that handle failures gracefully instead of crashing.
 
     *(Coming soon)*
 
--   :material-cash:{ .lg .middle } **3. Cost Tracking**
+-   :material-pipe:{ .lg .middle } **7. Multi-Step Workflows**
 
-    *"How much did that cost?"*
+    *Pipelines*
 
     ---
 
-    Why microcents matter for billing, tracking usage across calls, and setting cost budgets.
+    Real tasks need multiple steps: classify, then research, then write. Pipelines handle dependencies, run independent steps in parallel, and aggregate costs across the workflow.
 
     *(Coming soon)*
 
--   :material-code-json:{ .lg .middle } **4. Structured Output**
+-   :material-chart-line:{ .lg .middle } **8. Finding Problems in Production**
 
-    *"Give me data, not strings"*
+    *Tracing and observability*
 
     ---
 
-    Getting Pydantic models back instead of raw text. Type-safe responses for real applications.
+    Something's slow. Something's expensive. But what? Tracing lets you see inside your AI calls and correlate them with the rest of your application.
 
     *(Coming soon)*
 
--   :material-tools:{ .lg .middle } **5. Tools**
+-   :material-database-search:{ .lg .middle } **9. Retrieval Augmented Generation**
 
-    *"Let the agent do things"*
-
-    ---
-
-    Giving agents capabilities with `@safe_tool`. Timeout, retry, and graceful error handling.
-
-    *(Coming soon)*
-
--   :material-message-text:{ .lg .middle } **6. Conversations**
-
-    *"Remember what we talked about"*
+    *When the model doesn't know enough*
 
     ---
 
-    Message history patterns, stateless design, and when to use each approach.
-
-    *(Coming soon)*
-
--   :material-play-speed:{ .lg .middle } **7. Streaming**
-
-    *"Show me as you think"*
-
-    ---
-
-    Real-time responses, handling chunks, and cost tracking with streaming.
-
-    *(Coming soon)*
-
--   :material-pipe:{ .lg .middle } **8. Pipelines**
-
-    *"Chain steps together"*
-
-    ---
-
-    Multi-step workflows with automatic dependency resolution and cost aggregation.
-
-    *(Coming soon)*
-
--   :material-run-fast:{ .lg .middle } **9. Parallel Execution**
-
-    *"Run independent steps concurrently"*
-
-    ---
-
-    DAG-based execution, automatic parallelization, and performance optimization.
-
-    *(Coming soon)*
-
--   :material-shield-check:{ .lg .middle } **10. Production**
-
-    *"Ship it with confidence"*
-
-    ---
-
-    Tracing integration, error handling patterns, and observability for production systems.
+    LLMs have knowledge cutoffs and don't know your data. RAG combines retrieval (finding relevant documents) with generation (answering based on them). Embeddings, vector search, and grounding responses in real data.
 
     *(Coming soon)*
 
@@ -152,26 +151,25 @@ Instead of toy examples, you'll work through progressively complex scenarios tha
 
 ## Alternative Learning Paths
 
-=== "By Time Available"
+=== "By Time"
 
-    - **30 minutes**: Sections 1-2 → Understand agents and basic usage
-    - **2 hours**: Sections 1-5 → Build a functional AI application
-    - **Half day**: Sections 1-8 → Production-ready with pipelines
-    - **Full day**: All sections → Complete mastery
+    - **1 hour**: Sections 0-2 → Understand LLMs and build your first agent
+    - **Half day**: Sections 0-6 → Build a complete AI feature with tools
+    - **Full day**: All sections → Production-ready with pipelines, tracing, and RAG
 
-=== "By Experience Level"
+=== "By Background"
 
-    - **New to AI**: Start from section 1, don't skip fundamentals
-    - **Know LLMs, new to PydanticAI**: Start at section 2
-    - **Know PydanticAI**: Jump to section 3 (Cost Tracking) for FastroAI specifics
-    - **Production developer**: Focus on sections 5, 8-10
+    - **New to AI**: Start from Section 0, don't skip the foundations
+    - **Know ML, new to LLMs**: Skim Section 0, focus on 1-2
+    - **Know LLMs, new to PydanticAI**: Start at Section 2
+    - **Know PydanticAI**: Jump to Section 3 for tools and `@safe_tool`
 
 === "By Goal"
 
-    - **"I want to understand AI agents"** → Sections 1-4
-    - **"I want to build a chatbot"** → Sections 1-6
-    - **"I want to build a data pipeline"** → Sections 1-4, then 8-9
-    - **"I want to go to production"** → All sections, focus on 5 and 10
+    - **"I want to understand how LLMs work"** → Sections 0-1
+    - **"I want to build an AI feature"** → Sections 2-6
+    - **"I want to build complex workflows"** → Sections 2-5, then 7
+    - **"I want to add RAG to my app"** → Sections 0-2, then 9
 
 ## Prerequisites
 
@@ -183,13 +181,11 @@ You should be comfortable with:
 
 You don't need prior experience with:
 
-- PydanticAI (we'll cover what you need)
-- AI/LLM concepts (we start from basics)
-- Production infrastructure (we'll build up to it)
+- Machine learning or NLP (we start from the beginning)
+- PydanticAI (we cover what you need)
+- Production infrastructure (we build up to it)
 
 ---
-
-**Ready to learn?**
 
 The learning path is coming soon. In the meantime, check the [Quick Start](../index.md#quick-start) or explore the [Guides](../guides/index.md) for deep dives into specific features.
 
