@@ -282,6 +282,17 @@ class TestFastroAgentRun:
         usage.output_tokens = 50
         usage.total_tokens = 150
         usage.model = "gpt-4o"
+        # Cache tokens
+        usage.cache_read_tokens = 0
+        usage.cache_write_tokens = 0
+        # Audio tokens
+        usage.input_audio_tokens = 0
+        usage.output_audio_tokens = 0
+        usage.cache_audio_read_tokens = 0
+        # Request/tool metrics
+        usage.requests = 1
+        usage.tool_calls = 0
+        usage.details = {}
         result.usage.return_value = usage
 
         result.new_messages.return_value = []
@@ -397,6 +408,17 @@ class TestFastroAgentToolExtraction:
         usage.output_tokens = 5
         usage.total_tokens = 15
         usage.model = "gpt-4o"
+        # Cache tokens
+        usage.cache_read_tokens = 0
+        usage.cache_write_tokens = 0
+        # Audio tokens
+        usage.input_audio_tokens = 0
+        usage.output_audio_tokens = 0
+        usage.cache_audio_read_tokens = 0
+        # Request/tool metrics
+        usage.requests = 1
+        usage.tool_calls = 0
+        usage.details = {}
         result.usage.return_value = usage
 
         with patch.object(agent._agent, "run", new_callable=AsyncMock) as mock_run:
@@ -421,6 +443,17 @@ class TestFastroAgentToolExtraction:
         usage.output_tokens = 5
         usage.total_tokens = 15
         usage.model = "gpt-4o"
+        # Cache tokens
+        usage.cache_read_tokens = 0
+        usage.cache_write_tokens = 0
+        # Audio tokens
+        usage.input_audio_tokens = 0
+        usage.output_audio_tokens = 0
+        usage.cache_audio_read_tokens = 0
+        # Request/tool metrics
+        usage.requests = 1
+        usage.tool_calls = 0
+        usage.details = {}
         result.usage.return_value = usage
 
         with patch.object(agent._agent, "run", new_callable=AsyncMock) as mock_run:
@@ -479,6 +512,17 @@ class TestFastroAgentStreaming:
         usage.output_tokens = 5
         usage.total_tokens = 15
         usage.model = "gpt-4o"
+        # Cache tokens
+        usage.cache_read_tokens = 0
+        usage.cache_write_tokens = 0
+        # Audio tokens
+        usage.input_audio_tokens = 0
+        usage.output_audio_tokens = 0
+        usage.cache_audio_read_tokens = 0
+        # Request/tool metrics
+        usage.requests = 1
+        usage.tool_calls = 0
+        usage.details = {}
         mock_stream.usage.return_value = usage
         mock_stream.get_output.return_value = "Hello world"
         mock_stream.new_messages.return_value = []
@@ -513,6 +557,17 @@ class TestFastroAgentStreaming:
         usage.output_tokens = 25
         usage.total_tokens = 75
         usage.model = "gpt-4o"
+        # Cache tokens
+        usage.cache_read_tokens = 0
+        usage.cache_write_tokens = 0
+        # Audio tokens
+        usage.input_audio_tokens = 0
+        usage.output_audio_tokens = 0
+        usage.cache_audio_read_tokens = 0
+        # Request/tool metrics
+        usage.requests = 1
+        usage.tool_calls = 0
+        usage.details = {}
         mock_stream.usage.return_value = usage
         mock_stream.get_output.return_value = "Response"
         mock_stream.new_messages.return_value = []

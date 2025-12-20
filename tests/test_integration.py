@@ -144,6 +144,80 @@ class TestFastroAgentIntegration:
 
         assert "ALPHA-7742" in response.content
 
+    async def test_tool_call_tracking(self) -> None:
+        """Test that tool_call_count and request_count are tracked correctly."""
+
+        @safe_tool(timeout=5)
+        async def add_numbers(a: int, b: int) -> str:
+            """Add two numbers together."""
+            return f"The sum is {a + b}"
+
+        @safe_tool(timeout=5)
+        async def multiply_numbers(a: int, b: int) -> str:
+            """Multiply two numbers together."""
+            return f"The product is {a * b}"
+
+        class MathToolset(SafeToolset):
+            def __init__(self) -> None:
+                super().__init__(tools=[add_numbers, multiply_numbers], name="math")
+
+        agent = FastroAgent(
+            model="openai:gpt-4o-mini",
+            system_prompt="Use the math tools to answer questions. Always use tools, don't calculate yourself.",
+            toolsets=[MathToolset()],
+        )
+
+        response = await agent.run("What is 5 + 3?")
+
+        # Should have made at least 1 tool call
+        assert response.tool_call_count >= 1, f"Expected tool_call_count >= 1, got {response.tool_call_count}"
+        # Should have made at least 2 requests (initial + after tool response)
+        assert response.request_count >= 2, f"Expected request_count >= 2, got {response.request_count}"
+        # Should have tool call details
+        assert len(response.tool_calls) >= 1, "Expected tool_calls list to have items"
+        assert response.tool_calls[0]["tool_name"] == "add_numbers"
+
+    async def test_multiple_tool_calls_tracking(self) -> None:
+        """Test tracking when agent makes multiple tool calls."""
+
+        @safe_tool(timeout=5)
+        async def get_price(item: str) -> str:
+            """Get the price of an item."""
+            prices = {"apple": 1.50, "banana": 0.75, "orange": 2.00}
+            return f"{item} costs ${prices.get(item, 0):.2f}"
+
+        class PriceToolset(SafeToolset):
+            def __init__(self) -> None:
+                super().__init__(tools=[get_price], name="prices")
+
+        agent = FastroAgent(
+            model="openai:gpt-4o-mini",
+            system_prompt="Use the get_price tool to answer price questions. Call the tool for each item.",
+            toolsets=[PriceToolset()],
+        )
+
+        response = await agent.run("How much do an apple and a banana cost?")
+
+        # Should have made at least 2 tool calls (one for each item)
+        # Note: The model might call them in one go or separately
+        assert response.tool_call_count >= 1, f"Expected tool_call_count >= 1, got {response.tool_call_count}"
+        assert response.request_count >= 2, f"Expected request_count >= 2, got {response.request_count}"
+
+    async def test_usage_details_populated(self) -> None:
+        """Test that usage_details dict is populated (for models that provide it)."""
+        agent = FastroAgent(
+            model="openai:gpt-4o-mini",
+            system_prompt="Be concise.",
+        )
+
+        response = await agent.run("Say hello")
+
+        # usage_details should exist (may be empty for some models)
+        assert isinstance(response.usage_details, dict)
+        # Basic usage should always be tracked
+        assert response.input_tokens > 0
+        assert response.output_tokens > 0
+
 
 class TestSafeToolIntegration:
     """Integration tests for @safe_tool with real operations."""
@@ -1218,3 +1292,112 @@ class TestRealWorldScenarios:
         )
         assert not result3.stopped_early
         assert result3.output == "Order processed for John"
+
+
+# ============================================================================
+# Cache Token Integration Tests
+# ============================================================================
+
+
+@requires_openai
+class TestCacheTokensIntegration:
+    """Integration tests for cache token tracking with OpenAI.
+
+    OpenAI supports prompt caching on gpt-4o models for prompts >= 1024 tokens.
+    """
+
+    async def test_cache_fields_populated(self) -> None:
+        """Test that cache token fields exist in response (may be 0 for short prompts)."""
+        agent = FastroAgent(
+            model="openai:gpt-4o-mini",
+            system_prompt="Be concise.",
+        )
+
+        response = await agent.run("Say hello")
+
+        # Fields should exist (may be 0 for prompts below caching threshold)
+        assert isinstance(response.cache_read_tokens, int)
+        assert isinstance(response.cache_write_tokens, int)
+        assert response.cache_read_tokens >= 0
+        assert response.cache_write_tokens >= 0
+
+    async def test_request_count_single_call(self) -> None:
+        """Test request_count is 1 for a simple call without tools."""
+        agent = FastroAgent(
+            model="openai:gpt-4o-mini",
+            system_prompt="Be concise.",
+        )
+
+        response = await agent.run("Say hello")
+
+        # Should be exactly 1 request for a simple call
+        assert response.request_count == 1
+
+    async def test_cache_tokens_with_long_prompt(self) -> None:
+        """Test cache tokens with a long system prompt that may trigger caching.
+
+        OpenAI requires prompts >= 1024 tokens for prompt caching to be eligible.
+        This test uses a long prompt and makes multiple calls to see if caching occurs.
+        """
+        # Create a long system prompt (aim for ~1500 tokens)
+        long_context = " ".join([f"Rule {i}: Always be helpful, accurate, and informative." for i in range(200)])
+        system_prompt = f"""You are an expert assistant with the following comprehensive guidelines:
+
+{long_context}
+
+Remember to always be concise in your final responses."""
+
+        agent = FastroAgent(
+            model="openai:gpt-4o-mini",
+            system_prompt=system_prompt,
+        )
+
+        # First call
+        response1 = await agent.run("Say 'hello'")
+        assert response1.input_tokens > 0
+
+        # Second call with same system prompt
+        response2 = await agent.run("Say 'world'")
+        assert response2.input_tokens > 0
+
+        # Print for debugging
+        print(f"\nResponse 1: input={response1.input_tokens}, cache_read={response1.cache_read_tokens}")
+        print(f"Response 2: input={response2.input_tokens}, cache_read={response2.cache_read_tokens}")
+
+        # Verify cache fields are integers (caching may or may not occur)
+        assert isinstance(response1.cache_read_tokens, int)
+        assert isinstance(response2.cache_read_tokens, int)
+
+        # Both should have valid costs
+        assert response1.cost_microcents > 0
+        assert response2.cost_microcents > 0
+
+    async def test_all_new_fields_populated(self) -> None:
+        """Test that all new usage fields are properly populated."""
+        agent = FastroAgent(
+            model="openai:gpt-4o-mini",
+            system_prompt="Be concise.",
+        )
+
+        response = await agent.run("What is 2+2?")
+
+        # All new fields should be populated with valid values
+        assert isinstance(response.cache_read_tokens, int) and response.cache_read_tokens >= 0
+        assert isinstance(response.cache_write_tokens, int) and response.cache_write_tokens >= 0
+        assert isinstance(response.input_audio_tokens, int) and response.input_audio_tokens >= 0
+        assert isinstance(response.output_audio_tokens, int) and response.output_audio_tokens >= 0
+        assert isinstance(response.cache_audio_read_tokens, int) and response.cache_audio_read_tokens >= 0
+        assert isinstance(response.request_count, int) and response.request_count >= 1
+        assert isinstance(response.tool_call_count, int) and response.tool_call_count >= 0
+        assert isinstance(response.usage_details, dict)
+
+        # Print summary for debugging
+        print("\nUsage Summary:")
+        print(f"  input_tokens: {response.input_tokens}")
+        print(f"  output_tokens: {response.output_tokens}")
+        print(f"  cache_read_tokens: {response.cache_read_tokens}")
+        print(f"  cache_write_tokens: {response.cache_write_tokens}")
+        print(f"  request_count: {response.request_count}")
+        print(f"  tool_call_count: {response.tool_call_count}")
+        print(f"  cost_microcents: {response.cost_microcents}")
+        print(f"  cost_dollars: ${response.cost_dollars:.6f}")

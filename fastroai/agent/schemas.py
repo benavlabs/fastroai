@@ -44,23 +44,20 @@ class AgentConfig(BaseModel):
         ```
     """
 
-    model: str = DEFAULT_MODEL
-    """Model identifier (e.g., 'openai:gpt-4o', 'anthropic:claude-3-5-sonnet')."""
-
-    system_prompt: str | None = None
-    """System prompt. If None, uses DEFAULT_SYSTEM_PROMPT."""
-
-    max_tokens: int = DEFAULT_MAX_TOKENS
-    """Maximum tokens in response."""
-
-    temperature: float = Field(default=DEFAULT_TEMPERATURE, ge=0.0, le=2.0)
-    """Sampling temperature (0.0 = deterministic, 2.0 = creative)."""
-
-    timeout_seconds: int = Field(default=DEFAULT_TIMEOUT_SECONDS, gt=0)
-    """Request timeout in seconds."""
-
-    max_retries: int = Field(default=DEFAULT_MAX_RETRIES, ge=0)
-    """Maximum retry attempts on failure."""
+    model: str = Field(
+        default=DEFAULT_MODEL,
+        description="Model identifier (e.g., 'openai:gpt-4o', 'anthropic:claude-3-5-sonnet').",
+    )
+    system_prompt: str | None = Field(default=None, description="System prompt. If None, uses DEFAULT_SYSTEM_PROMPT.")
+    max_tokens: int = Field(default=DEFAULT_MAX_TOKENS, description="Maximum tokens in response.")
+    temperature: float = Field(
+        default=DEFAULT_TEMPERATURE,
+        ge=0.0,
+        le=2.0,
+        description="Sampling temperature (0.0 = deterministic, 2.0 = creative).",
+    )
+    timeout_seconds: int = Field(default=DEFAULT_TIMEOUT_SECONDS, gt=0, description="Request timeout in seconds.")
+    max_retries: int = Field(default=DEFAULT_MAX_RETRIES, ge=0, description="Maximum retry attempts on failure.")
 
     def get_effective_system_prompt(self) -> str:
         """Get system prompt, using default if not set.
@@ -77,18 +74,6 @@ class ChatResponse(BaseModel, Generic[OutputT]):
     Contains the response content plus comprehensive usage metrics
     for billing, analytics, and debugging.
 
-    Attributes:
-        output: The typed output from the agent. For string agents, same as content.
-        content: String representation of the output.
-        model: Model that generated the response.
-        input_tokens: Tokens consumed by input/prompt.
-        output_tokens: Tokens in response/completion.
-        total_tokens: input_tokens + output_tokens.
-        tool_calls: Tools invoked during generation.
-        cost_microcents: Cost in 1/10,000ths of a cent (integer).
-        processing_time_ms: Wall-clock time in milliseconds.
-        trace_id: Distributed tracing correlation ID.
-
     Examples:
         ```python
         response = await agent.run("What is 2+2?")
@@ -96,6 +81,11 @@ class ChatResponse(BaseModel, Generic[OutputT]):
         print(f"Answer: {response.content}")
         print(f"Cost: ${response.cost_dollars:.6f}")
         print(f"Tokens: {response.total_tokens}")
+
+        # Check cache effectiveness
+        if response.cache_read_tokens > 0:
+            cache_ratio = response.cache_read_tokens / response.input_tokens
+            print(f"Cache hit ratio: {cache_ratio:.1%}")
 
         if response.tool_calls:
             for call in response.tool_calls:
@@ -115,47 +105,43 @@ class ChatResponse(BaseModel, Generic[OutputT]):
         ```
 
     Note:
-        Why microcents?
-        Floating-point math has precision errors:
-        >>> 0.1 + 0.2
-        0.30000000000000004
-
-        With microcents (integers), precision is exact:
-        >>> 100 + 200
-        300
-
-        For billing systems, this matters.
+        Why microcents? Floating-point math has precision errors (0.1 + 0.2 = 0.30000000000000004).
+        With integers, precision is exact. For billing systems, this matters.
     """
 
-    output: OutputT
-    """The typed output from the agent."""
+    output: OutputT = Field(description="The typed output from the agent.")
+    content: str = Field(description="String representation of the output.")
+    model: str = Field(description="Model that generated the response.")
 
-    content: str
-    """String representation of the output."""
+    input_tokens: int = Field(description="Tokens consumed by input/prompt.")
+    output_tokens: int = Field(description="Tokens in response/completion.")
+    total_tokens: int = Field(description="Total tokens (input + output).")
 
-    model: str
-    """Model that generated the response."""
+    cache_read_tokens: int = Field(
+        default=0,
+        description="Tokens read from prompt cache (typically 90% cheaper).",
+    )
+    cache_write_tokens: int = Field(
+        default=0,
+        description="Tokens written to prompt cache (typically 25% premium).",
+    )
 
-    input_tokens: int
-    """Tokens consumed by input/prompt."""
+    input_audio_tokens: int = Field(default=0, description="Audio input tokens for multimodal models.")
+    output_audio_tokens: int = Field(default=0, description="Audio output tokens for multimodal models.")
+    cache_audio_read_tokens: int = Field(default=0, description="Audio tokens read from cache.")
 
-    output_tokens: int
-    """Tokens in response/completion."""
+    tool_calls: list[dict[str, Any]] = Field(default_factory=list, description="Tools invoked during generation.")
+    tool_call_count: int = Field(default=0, description="Number of tool invocations executed.")
+    request_count: int = Field(default=1, description="Number of API requests made during this interaction.")
 
-    total_tokens: int
-    """Total tokens (input + output)."""
+    cost_microcents: int = Field(description="Cost in microcents (1/1,000,000 dollar).")
+    processing_time_ms: int = Field(description="Wall-clock processing time in milliseconds.")
 
-    tool_calls: list[dict[str, Any]] = []
-    """Tools invoked during generation."""
-
-    cost_microcents: int
-    """Cost in microcents (1/1,000,000 dollar)."""
-
-    processing_time_ms: int
-    """Wall-clock processing time in milliseconds."""
-
-    trace_id: str | None = None
-    """Distributed tracing correlation ID."""
+    trace_id: str | None = Field(default=None, description="Distributed tracing correlation ID.")
+    usage_details: dict[str, int] = Field(
+        default_factory=dict,
+        description="Provider-specific usage details (e.g., reasoning_tokens for o1).",
+    )
 
     @property
     def cost_dollars(self) -> float:
@@ -186,11 +172,8 @@ class StreamChunk(BaseModel, Generic[OutputT]):
         ```
     """
 
-    content: str = ""
-    """Text content of this chunk."""
-
-    is_final: bool = False
-    """True if this is the final chunk with usage data."""
-
-    usage_data: ChatResponse[OutputT] | None = None
-    """Complete usage data (only on final chunk)."""
+    content: str = Field(default="", description="Text content of this chunk.")
+    is_final: bool = Field(default=False, description="True if this is the final chunk with usage data.")
+    usage_data: ChatResponse[OutputT] | None = Field(
+        default=None, description="Complete usage data (only on final chunk)."
+    )

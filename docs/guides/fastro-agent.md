@@ -102,13 +102,20 @@ print(f"Time: {response.processing_time_ms}ms")
 | `model` | `str` | Model that generated the response |
 | `input_tokens` | `int` | Prompt tokens consumed |
 | `output_tokens` | `int` | Completion tokens generated |
+| `cache_read_tokens` | `int` | Tokens read from prompt cache (typically 90% cheaper) |
+| `cache_write_tokens` | `int` | Tokens written to prompt cache |
 | `cost_microcents` | `int` | Cost in 1/1,000,000 of a dollar (for calculations) |
 | `cost_dollars` | `float` | Cost in dollars (for display) |
 | `processing_time_ms` | `int` | Wall-clock time |
 | `tool_calls` | `list` | Tools invoked during generation |
+| `tool_call_count` | `int` | Number of tool invocations |
+| `request_count` | `int` | Number of API requests (increases with tool use) |
 | `trace_id` | `str` | Tracing correlation ID |
+| `usage_details` | `dict` | Provider-specific details (e.g., reasoning tokens) |
 
 Use `cost_microcents` when you need to aggregate costs across many calls - integer math won't drift. Use `cost_dollars` when displaying to users.
+
+When prompt caching is enabled (Anthropic, OpenAI with long prompts), `cache_read_tokens` shows how many tokens came from cache at a 90% discount. This is automatically factored into `cost_microcents`.
 
 ## Structured Output
 

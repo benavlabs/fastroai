@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 else:
     try:
         import logfire as logfire_module
-    except ImportError:
+    except ImportError:  # pragma: no cover
         logfire_module = None  # type: ignore[assignment]
 
 
