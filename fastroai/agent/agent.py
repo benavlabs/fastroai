@@ -354,10 +354,29 @@ class FastroAgent(Generic[OutputT]):
         output_tokens = usage.output_tokens or 0
         total_tokens = usage.total_tokens or (input_tokens + output_tokens)
 
+        cache_read_tokens = getattr(usage, "cache_read_tokens", 0) or 0
+        cache_write_tokens = getattr(usage, "cache_write_tokens", 0) or 0
+
+        input_audio_tokens = getattr(usage, "input_audio_tokens", 0) or 0
+        output_audio_tokens = getattr(usage, "output_audio_tokens", 0) or 0
+        cache_audio_read_tokens = getattr(usage, "cache_audio_read_tokens", 0) or 0
+
+        request_count = getattr(usage, "requests", 1) or 1
+        tool_call_count = getattr(usage, "tool_calls", 0) or 0
+
+        usage_details: dict[str, int] = {}
+        if hasattr(usage, "details") and usage.details:  # pragma: no cover
+            usage_details = {k: v for k, v in usage.details.items() if isinstance(v, int)}
+
         cost_microcents = self.cost_calculator.calculate_cost(
             model=model,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
+            cache_read_tokens=cache_read_tokens,
+            cache_write_tokens=cache_write_tokens,
+            input_audio_tokens=input_audio_tokens,
+            output_audio_tokens=output_audio_tokens,
+            cache_audio_read_tokens=cache_audio_read_tokens,
         )
 
         tool_calls = self._extract_tool_calls(result)
@@ -371,10 +390,18 @@ class FastroAgent(Generic[OutputT]):
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             total_tokens=total_tokens,
+            cache_read_tokens=cache_read_tokens,
+            cache_write_tokens=cache_write_tokens,
+            input_audio_tokens=input_audio_tokens,
+            output_audio_tokens=output_audio_tokens,
+            cache_audio_read_tokens=cache_audio_read_tokens,
             tool_calls=tool_calls,
+            tool_call_count=tool_call_count,
+            request_count=request_count,
             cost_microcents=cost_microcents,
             processing_time_ms=processing_time_ms,
             trace_id=trace_id,
+            usage_details=usage_details,
         )
 
     async def _create_streaming_response(
@@ -400,10 +427,29 @@ class FastroAgent(Generic[OutputT]):
         output_tokens = usage.output_tokens or 0
         total_tokens = usage.total_tokens or (input_tokens + output_tokens)
 
+        cache_read_tokens = getattr(usage, "cache_read_tokens", 0) or 0
+        cache_write_tokens = getattr(usage, "cache_write_tokens", 0) or 0
+
+        input_audio_tokens = getattr(usage, "input_audio_tokens", 0) or 0
+        output_audio_tokens = getattr(usage, "output_audio_tokens", 0) or 0
+        cache_audio_read_tokens = getattr(usage, "cache_audio_read_tokens", 0) or 0
+
+        request_count = getattr(usage, "requests", 1) or 1
+        tool_call_count = getattr(usage, "tool_calls", 0) or 0
+
+        usage_details: dict[str, int] = {}
+        if hasattr(usage, "details") and usage.details:  # pragma: no cover
+            usage_details = {k: v for k, v in usage.details.items() if isinstance(v, int)}
+
         cost_microcents = self.cost_calculator.calculate_cost(
             model=model,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
+            cache_read_tokens=cache_read_tokens,
+            cache_write_tokens=cache_write_tokens,
+            input_audio_tokens=input_audio_tokens,
+            output_audio_tokens=output_audio_tokens,
+            cache_audio_read_tokens=cache_audio_read_tokens,
         )
 
         tool_calls = self._extract_tool_calls_from_messages(stream.new_messages())
@@ -420,10 +466,18 @@ class FastroAgent(Generic[OutputT]):
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             total_tokens=total_tokens,
+            cache_read_tokens=cache_read_tokens,
+            cache_write_tokens=cache_write_tokens,
+            input_audio_tokens=input_audio_tokens,
+            output_audio_tokens=output_audio_tokens,
+            cache_audio_read_tokens=cache_audio_read_tokens,
             tool_calls=tool_calls,
+            tool_call_count=tool_call_count,
+            request_count=request_count,
             cost_microcents=cost_microcents,
             processing_time_ms=processing_time_ms,
             trace_id=trace_id,
+            usage_details=usage_details,
         )
 
     def _extract_tool_calls(self, result: Any) -> list[dict[str, Any]]:
