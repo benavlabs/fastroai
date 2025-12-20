@@ -1485,8 +1485,8 @@
 </span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="p">)</span>
 </span></code></pre></div>
 <p>When someone asks:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">agent</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="n">I</span> <span class="n">earn</span> <span class="err">$</span><span class="mi">5000</span><span class="o">/</span><span class="n">month</span> <span class="ow">and</span> <span class="n">spent</span> <span class="err">$</span><span class="mi">800</span> <span class="n">on</span> <span class="n">food</span><span class="o">.</span> <span class="n">Is</span> <span class="n">that</span> <span class="n">too</span> <span class="n">much</span><span class="err">?</span><span class="s2">&quot;</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">agent</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="s2">&quot;I earn $5000/month and spent $800 on food. Is that too much?&quot;</span>
 </span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="p">)</span>
 </span></code></pre></div>
 <p>The agent calls <code>analyze_spending(5000, 800, "food")</code>, gets back <code>"16.0% of income on food - a bit high but manageable"</code>, and generates a helpful response using that assessment.</p>
