@@ -187,6 +187,4 @@ You don't need prior experience with:
 
 ---
 
-The learning path is coming soon. In the meantime, check the [Quick Start](../index.md#quick-start) or explore the [Guides](../guides/index.md) for deep dives into specific features.
-
-[Quick Start →](../index.md#quick-start){ .md-button .md-button--primary } [Browse Guides →](../guides/index.md){ .md-button }
+[Start Learning →](0-how-language-models-work.md){ .md-button .md-button--primary } [Browse Guides →](../guides/index.md){ .md-button }
