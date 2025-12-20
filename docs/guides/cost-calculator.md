@@ -47,6 +47,27 @@ print(f"Session cost: ${calc.microcents_to_dollars(total_cost):.4f}")
 
 After 10,000 additions, you have an exact count. No cumulative rounding errors.
 
+## Prompt Caching
+
+Anthropic and OpenAI support prompt caching, where repeated system prompts are stored and reused at a significant discount - typically 90% cheaper for cached tokens. FastroAI automatically tracks cache tokens and factors them into cost calculations.
+
+When you use FastroAgent, cache tokens are tracked automatically:
+
+```python
+response = await agent.run("What's the weather?")
+
+print(f"Input tokens: {response.input_tokens}")
+print(f"Cached tokens: {response.cache_read_tokens}")  # Tokens from cache (90% discount)
+print(f"Cost: ${response.cost_dollars:.6f}")  # Accurate cost with cache discount
+```
+
+If you're using a long system prompt that gets cached, subsequent requests to the same agent will show cache hits. The cost calculation automatically applies the discounted rate for cached tokens.
+
+**Requirements for prompt caching:**
+
+- **Anthropic:** Prompts >= 1024 tokens with cache_control markers
+- **OpenAI:** Prompts >= 1024 tokens on gpt-4o models
+
 ## Direct Calculator Usage
 
 Sometimes you need cost calculation without running an agent - estimating costs upfront, building dashboards, or custom tracking:
@@ -64,6 +85,18 @@ cost = calc.calculate_cost(
 
 print(f"Cost: {cost} microcents")  # 7500 microcents
 print(f"Cost: ${calc.microcents_to_dollars(cost):.6f}")  # $0.007500
+```
+
+For accurate costs with prompt caching, pass cache tokens:
+
+```python
+cost = calc.calculate_cost(
+    model="claude-3-5-sonnet",
+    input_tokens=1000,
+    output_tokens=500,
+    cache_read_tokens=800,  # 800 of 1000 input tokens were cached
+)
+# Cost is lower because 800 tokens are priced at 90% discount
 ```
 
 Model names get normalized automatically. Both `"gpt-4o"` and `"openai:gpt-4o"` work.
@@ -110,6 +143,20 @@ calc.add_pricing_override(
     output_per_mtok=0.20,
 )
 ```
+
+You can also specify cache token rates for models that support prompt caching:
+
+```python
+calc.add_pricing_override(
+    model="my-cached-model",
+    input_per_mtok=3.00,
+    output_per_mtok=15.00,
+    cache_read_per_mtok=0.30,   # 90% discount for cached tokens
+    cache_write_per_mtok=3.75,  # 25% premium for cache writes
+)
+```
+
+If you don't specify cache rates, default discounts apply (90% for reads, 25% premium for writes) when cache tokens are passed to `calculate_cost()`.
 
 Overrides take precedence over genai-prices. Prices are in dollars per million tokens (the standard unit providers use).
 

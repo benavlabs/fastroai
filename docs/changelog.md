@@ -6,6 +6,36 @@ The Changelog documents all notable changes made to FastroAI. This includes new 
 
 ---
 
+## [0.4.0] - Dec 19, 2025
+
+#### Added
+- **Enhanced Cost Tracking** by [@igorbenav](https://github.com/igorbenav)
+  - Cache token tracking (`cache_read_tokens`, `cache_write_tokens`) for accurate cost calculation with prompt caching
+  - Audio token tracking for multimodal models
+  - Request count tracking (`request_count`) for API call monitoring
+  - Tool call count tracking (`tool_call_count`) for agentic behavior metrics
+  - Provider-specific usage details (`usage_details` dict) for reasoning tokens, etc.
+
+- **Accurate Prompt Caching Costs**
+  - Cached tokens are now priced at 90% discount (Anthropic) automatically
+  - `CostCalculator.calculate_cost()` accepts optional `cache_read_tokens`, `cache_write_tokens` parameters
+  - Pricing overrides support cache token rates via `add_pricing_override(cache_read_per_mtok=..., cache_write_per_mtok=...)`
+  - Fixes cost overreporting when prompt caching is enabled (~18% more accurate)
+
+#### Changed
+- All Pydantic schemas now use `Field(description=...)` for better API documentation
+- `ChatResponse`, `StepUsage`, and `PipelineUsage` include new usage fields with sensible defaults
+- Backward compatible - existing code continues to work without changes
+
+#### Documentation
+- Updated FastroAgent guide with new response fields
+- Added Prompt Caching section to Cost Calculator guide
+- Updated API reference with enhanced schemas
+
+**Full Changelog**: https://github.com/benavlabs/fastroai/compare/v0.3.0...v0.4.0
+
+---
+
 ## [0.3.0] - Dec 17, 2025
 
 #### Added
