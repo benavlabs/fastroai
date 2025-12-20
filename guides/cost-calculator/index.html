@@ -773,6 +773,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#prompt-caching" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prompt Caching
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#direct-calculator-usage" class="md-nav__link">
     <span class="md-ellipsis">
       Direct Calculator Usage
@@ -1254,6 +1263,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#prompt-caching" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prompt Caching
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#direct-calculator-usage" class="md-nav__link">
     <span class="md-ellipsis">
       Direct Calculator Usage
@@ -1388,90 +1406,124 @@
 </span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Session cost: $</span><span class="si">{</span><span class="n">calc</span><span class="o">.</span><span class="n">microcents_to_dollars</span><span class="p">(</span><span class="n">total_cost</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <p>After 10,000 additions, you have an exact count. No cumulative rounding errors.</p>
+<h2 id="prompt-caching">Prompt Caching<a class="headerlink" href="#prompt-caching" title="Permanent link">&para;</a></h2>
+<p>Anthropic and OpenAI support prompt caching, where repeated system prompts are stored and reused at a significant discount - typically 90% cheaper for cached tokens. FastroAI automatically tracks cache tokens and factors them into cost calculations.</p>
+<p>When you use FastroAgent, cache tokens are tracked automatically:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">agent</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;What&#39;s the weather?&quot;</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Input tokens: </span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">input_tokens</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cached tokens: </span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">cache_read_tokens</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># Tokens from cache (90% discount)</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cost: $</span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">cost_dollars</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># Accurate cost with cache discount</span>
+</span></code></pre></div>
+<p>If you're using a long system prompt that gets cached, subsequent requests to the same agent will show cache hits. The cost calculation automatically applies the discounted rate for cached tokens.</p>
+<p><strong>Requirements for prompt caching:</strong></p>
+<ul>
+<li><strong>Anthropic:</strong> Prompts &gt;= 1024 tokens with cache_control markers</li>
+<li><strong>OpenAI:</strong> Prompts &gt;= 1024 tokens on gpt-4o models</li>
+</ul>
 <h2 id="direct-calculator-usage">Direct Calculator Usage<a class="headerlink" href="#direct-calculator-usage" title="Permanent link">&para;</a></h2>
 <p>Sometimes you need cost calculation without running an agent - estimating costs upfront, building dashboards, or custom tracking:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span> <span class="nn">fastroai</span> <span class="kn">import</span> <span class="n">CostCalculator</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">calc</span> <span class="o">=</span> <span class="n">CostCalculator</span><span class="p">()</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">cost</span> <span class="o">=</span> <span class="n">calc</span><span class="o">.</span><span class="n">calculate_cost</span><span class="p">(</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">,</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">input_tokens</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="n">output_tokens</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="p">)</span>
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>
-</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cost: </span><span class="si">{</span><span class="n">cost</span><span class="si">}</span><span class="s2"> microcents&quot;</span><span class="p">)</span>  <span class="c1"># 7500 microcents</span>
-</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cost: $</span><span class="si">{</span><span class="n">calc</span><span class="o">.</span><span class="n">microcents_to_dollars</span><span class="p">(</span><span class="n">cost</span><span class="p">)</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># $0.007500</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span> <span class="nn">fastroai</span> <span class="kn">import</span> <span class="n">CostCalculator</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">calc</span> <span class="o">=</span> <span class="n">CostCalculator</span><span class="p">()</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">cost</span> <span class="o">=</span> <span class="n">calc</span><span class="o">.</span><span class="n">calculate_cost</span><span class="p">(</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">,</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="n">input_tokens</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    <span class="n">output_tokens</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="p">)</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cost: </span><span class="si">{</span><span class="n">cost</span><span class="si">}</span><span class="s2"> microcents&quot;</span><span class="p">)</span>  <span class="c1"># 7500 microcents</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cost: $</span><span class="si">{</span><span class="n">calc</span><span class="o">.</span><span class="n">microcents_to_dollars</span><span class="p">(</span><span class="n">cost</span><span class="p">)</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># $0.007500</span>
+</span></code></pre></div>
+<p>For accurate costs with prompt caching, pass cache tokens:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">cost</span> <span class="o">=</span> <span class="n">calc</span><span class="o">.</span><span class="n">calculate_cost</span><span class="p">(</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;claude-3-5-sonnet&quot;</span><span class="p">,</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="n">input_tokens</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">output_tokens</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="n">cache_read_tokens</span><span class="o">=</span><span class="mi">800</span><span class="p">,</span>  <span class="c1"># 800 of 1000 input tokens were cached</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="p">)</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Cost is lower because 800 tokens are priced at 90% discount</span>
 </span></code></pre></div>
 <p>Model names get normalized automatically. Both <code>"gpt-4o"</code> and <code>"openai:gpt-4o"</code> work.</p>
 <h3 id="conversion-methods">Conversion Methods<a class="headerlink" href="#conversion-methods" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">calc</span> <span class="o">=</span> <span class="n">CostCalculator</span><span class="p">()</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># Microcents to dollars (for display)</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">dollars</span> <span class="o">=</span> <span class="n">calc</span><span class="o">.</span><span class="n">microcents_to_dollars</span><span class="p">(</span><span class="mi">7500</span><span class="p">)</span>  <span class="c1"># 0.0075</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="c1"># Dollars to microcents (for storage/budgets)</span>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="n">microcents</span> <span class="o">=</span> <span class="n">calc</span><span class="o">.</span><span class="n">dollars_to_microcents</span><span class="p">(</span><span class="mf">0.10</span><span class="p">)</span>  <span class="c1"># 100000</span>
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
-</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="c1"># Formatted output for debugging</span>
-</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="n">formatted</span> <span class="o">=</span> <span class="n">calc</span><span class="o">.</span><span class="n">format_cost</span><span class="p">(</span><span class="mi">7500</span><span class="p">)</span>
-</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="c1"># {&quot;microcents&quot;: 7500, &quot;cents&quot;: 0, &quot;dollars&quot;: 0.0075}</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">calc</span> <span class="o">=</span> <span class="n">CostCalculator</span><span class="p">()</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="c1"># Microcents to dollars (for display)</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">dollars</span> <span class="o">=</span> <span class="n">calc</span><span class="o">.</span><span class="n">microcents_to_dollars</span><span class="p">(</span><span class="mi">7500</span><span class="p">)</span>  <span class="c1"># 0.0075</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="c1"># Dollars to microcents (for storage/budgets)</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="n">microcents</span> <span class="o">=</span> <span class="n">calc</span><span class="o">.</span><span class="n">dollars_to_microcents</span><span class="p">(</span><span class="mf">0.10</span><span class="p">)</span>  <span class="c1"># 100000</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="c1"># Formatted output for debugging</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="n">formatted</span> <span class="o">=</span> <span class="n">calc</span><span class="o">.</span><span class="n">format_cost</span><span class="p">(</span><span class="mi">7500</span><span class="p">)</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="c1"># {&quot;microcents&quot;: 7500, &quot;cents&quot;: 0, &quot;dollars&quot;: 0.0075}</span>
 </span></code></pre></div>
 <h2 id="custom-pricing">Custom Pricing<a class="headerlink" href="#custom-pricing" title="Permanent link">&para;</a></h2>
 <p>genai-prices covers most models, but you might need custom pricing. Maybe you've negotiated volume discounts with your provider. Or you're running self-hosted or fine-tuned models that aren't in any public pricing list. Or a new model came out and genai-prices hasn't updated yet.</p>
 <p>Override pricing at initialization:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span> <span class="nn">fastroai</span> <span class="kn">import</span> <span class="n">CostCalculator</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">calc</span> <span class="o">=</span> <span class="n">CostCalculator</span><span class="p">(</span><span class="n">pricing_overrides</span><span class="o">=</span><span class="p">{</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="s2">&quot;gpt-4o&quot;</span><span class="p">:</span> <span class="p">{</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>        <span class="s2">&quot;input_per_mtok&quot;</span><span class="p">:</span> <span class="mf">2.00</span><span class="p">,</span>   <span class="c1"># $2.00 per million input tokens</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>        <span class="s2">&quot;output_per_mtok&quot;</span><span class="p">:</span> <span class="mf">8.00</span><span class="p">,</span>  <span class="c1"># $8.00 per million output tokens</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="p">},</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="p">})</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span> <span class="nn">fastroai</span> <span class="kn">import</span> <span class="n">CostCalculator</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">calc</span> <span class="o">=</span> <span class="n">CostCalculator</span><span class="p">(</span><span class="n">pricing_overrides</span><span class="o">=</span><span class="p">{</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="s2">&quot;gpt-4o&quot;</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>        <span class="s2">&quot;input_per_mtok&quot;</span><span class="p">:</span> <span class="mf">2.00</span><span class="p">,</span>   <span class="c1"># $2.00 per million input tokens</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>        <span class="s2">&quot;output_per_mtok&quot;</span><span class="p">:</span> <span class="mf">8.00</span><span class="p">,</span>  <span class="c1"># $8.00 per million output tokens</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="p">},</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="p">})</span>
 </span></code></pre></div>
 <p>Or add overrides later:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">calc</span><span class="o">.</span><span class="n">add_pricing_override</span><span class="p">(</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;my-local-model&quot;</span><span class="p">,</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="n">input_per_mtok</span><span class="o">=</span><span class="mf">0.10</span><span class="p">,</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">output_per_mtok</span><span class="o">=</span><span class="mf">0.20</span><span class="p">,</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">calc</span><span class="o">.</span><span class="n">add_pricing_override</span><span class="p">(</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;my-local-model&quot;</span><span class="p">,</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>    <span class="n">input_per_mtok</span><span class="o">=</span><span class="mf">0.10</span><span class="p">,</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="n">output_per_mtok</span><span class="o">=</span><span class="mf">0.20</span><span class="p">,</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="p">)</span>
 </span></code></pre></div>
+<p>You can also specify cache token rates for models that support prompt caching:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">calc</span><span class="o">.</span><span class="n">add_pricing_override</span><span class="p">(</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;my-cached-model&quot;</span><span class="p">,</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    <span class="n">input_per_mtok</span><span class="o">=</span><span class="mf">3.00</span><span class="p">,</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="n">output_per_mtok</span><span class="o">=</span><span class="mf">15.00</span><span class="p">,</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    <span class="n">cache_read_per_mtok</span><span class="o">=</span><span class="mf">0.30</span><span class="p">,</span>   <span class="c1"># 90% discount for cached tokens</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>    <span class="n">cache_write_per_mtok</span><span class="o">=</span><span class="mf">3.75</span><span class="p">,</span>  <span class="c1"># 25% premium for cache writes</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="p">)</span>
+</span></code></pre></div>
+<p>If you don't specify cache rates, default discounts apply (90% for reads, 25% premium for writes) when cache tokens are passed to <code>calculate_cost()</code>.</p>
 <p>Overrides take precedence over genai-prices. Prices are in dollars per million tokens (the standard unit providers use).</p>
 <h3 id="using-custom-pricing-with-agents">Using Custom Pricing with Agents<a class="headerlink" href="#using-custom-pricing-with-agents" title="Permanent link">&para;</a></h3>
 <p>Pass your configured calculator to the agent:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span> <span class="nn">fastroai</span> <span class="kn">import</span> <span class="n">FastroAgent</span><span class="p">,</span> <span class="n">CostCalculator</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">calc</span> <span class="o">=</span> <span class="n">CostCalculator</span><span class="p">()</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="n">calc</span><span class="o">.</span><span class="n">add_pricing_override</span><span class="p">(</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">,</span> <span class="n">input_per_mtok</span><span class="o">=</span><span class="mf">2.00</span><span class="p">,</span> <span class="n">output_per_mtok</span><span class="o">=</span><span class="mf">8.00</span><span class="p">)</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="n">agent</span> <span class="o">=</span> <span class="n">FastroAgent</span><span class="p">(</span>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;openai:gpt-4o&quot;</span><span class="p">,</span>
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="n">cost_calculator</span><span class="o">=</span><span class="n">calc</span><span class="p">,</span>
-</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="p">)</span>
-</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>
-</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="c1"># Now response.cost_microcents uses your pricing</span>
-</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">agent</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;Hello!&quot;</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span> <span class="nn">fastroai</span> <span class="kn">import</span> <span class="n">FastroAgent</span><span class="p">,</span> <span class="n">CostCalculator</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">calc</span> <span class="o">=</span> <span class="n">CostCalculator</span><span class="p">()</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">calc</span><span class="o">.</span><span class="n">add_pricing_override</span><span class="p">(</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">,</span> <span class="n">input_per_mtok</span><span class="o">=</span><span class="mf">2.00</span><span class="p">,</span> <span class="n">output_per_mtok</span><span class="o">=</span><span class="mf">8.00</span><span class="p">)</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="n">agent</span> <span class="o">=</span> <span class="n">FastroAgent</span><span class="p">(</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;openai:gpt-4o&quot;</span><span class="p">,</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>    <span class="n">cost_calculator</span><span class="o">=</span><span class="n">calc</span><span class="p">,</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="p">)</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="c1"># Now response.cost_microcents uses your pricing</span>
+</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">agent</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;Hello!&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <h2 id="unknown-models">Unknown Models<a class="headerlink" href="#unknown-models" title="Permanent link">&para;</a></h2>
 <p>If you use a model that isn't in genai-prices and doesn't have a custom override, the calculator returns 0 cost and logs a debug message. This way your code doesn't crash - you just get missing cost data.</p>
 <p>Check your logs for "Unknown model" warnings. Either add a pricing override or open a PR on genai-prices.</p>
 <h2 id="cost-budgets">Cost Budgets<a class="headerlink" href="#cost-budgets" title="Permanent link">&para;</a></h2>
 <p>Track cumulative costs and stop when you hit a limit:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span> <span class="nn">fastroai</span> <span class="kn">import</span> <span class="n">CostCalculator</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">calc</span> <span class="o">=</span> <span class="n">CostCalculator</span><span class="p">()</span>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">total_cost</span> <span class="o">=</span> <span class="mi">0</span>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">budget</span> <span class="o">=</span> <span class="n">calc</span><span class="o">.</span><span class="n">dollars_to_microcents</span><span class="p">(</span><span class="mf">1.00</span><span class="p">)</span>  <span class="c1"># $1.00 budget</span>
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>
-</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="k">for</span> <span class="n">query</span> <span class="ow">in</span> <span class="n">queries</span><span class="p">:</span>
-</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">agent</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
-</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>    <span class="n">total_cost</span> <span class="o">+=</span> <span class="n">response</span><span class="o">.</span><span class="n">cost_microcents</span>
-</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>
-</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>    <span class="k">if</span> <span class="n">total_cost</span> <span class="o">&gt;=</span> <span class="n">budget</span><span class="p">:</span>
-</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Budget exhausted&quot;</span><span class="p">)</span>
-</span><span id="__span-8-13"><a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>        <span class="k">break</span>
-</span><span id="__span-8-14"><a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>
-</span><span id="__span-8-15"><a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Total spent: $</span><span class="si">{</span><span class="n">calc</span><span class="o">.</span><span class="n">microcents_to_dollars</span><span class="p">(</span><span class="n">total_cost</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span> <span class="nn">fastroai</span> <span class="kn">import</span> <span class="n">CostCalculator</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">calc</span> <span class="o">=</span> <span class="n">CostCalculator</span><span class="p">()</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="n">total_cost</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="n">budget</span> <span class="o">=</span> <span class="n">calc</span><span class="o">.</span><span class="n">dollars_to_microcents</span><span class="p">(</span><span class="mf">1.00</span><span class="p">)</span>  <span class="c1"># $1.00 budget</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="k">for</span> <span class="n">query</span> <span class="ow">in</span> <span class="n">queries</span><span class="p">:</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>    <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">agent</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>    <span class="n">total_cost</span> <span class="o">+=</span> <span class="n">response</span><span class="o">.</span><span class="n">cost_microcents</span>
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>
+</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>    <span class="k">if</span> <span class="n">total_cost</span> <span class="o">&gt;=</span> <span class="n">budget</span><span class="p">:</span>
+</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Budget exhausted&quot;</span><span class="p">)</span>
+</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>        <span class="k">break</span>
+</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>
+</span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Total spent: $</span><span class="si">{</span><span class="n">calc</span><span class="o">.</span><span class="n">microcents_to_dollars</span><span class="p">(</span><span class="n">total_cost</span><span class="p">)</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <p>This works fine for simple cases. For multi-step workflows where you want automatic budget enforcement, pipelines have built-in cost budgets that raise <code>CostBudgetExceededError</code> when exceeded. See the <a href="../pipelines/">Pipelines</a> guide.</p>
 <h2 id="pricing-reference">Pricing Reference<a class="headerlink" href="#pricing-reference" title="Permanent link">&para;</a></h2>

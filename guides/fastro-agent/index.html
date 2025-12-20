@@ -1546,6 +1546,16 @@
 <td>Completion tokens generated</td>
 </tr>
 <tr>
+<td><code>cache_read_tokens</code></td>
+<td><code>int</code></td>
+<td>Tokens read from prompt cache (typically 90% cheaper)</td>
+</tr>
+<tr>
+<td><code>cache_write_tokens</code></td>
+<td><code>int</code></td>
+<td>Tokens written to prompt cache</td>
+</tr>
+<tr>
 <td><code>cost_microcents</code></td>
 <td><code>int</code></td>
 <td>Cost in 1/1,000,000 of a dollar (for calculations)</td>
@@ -1566,13 +1576,29 @@
 <td>Tools invoked during generation</td>
 </tr>
 <tr>
+<td><code>tool_call_count</code></td>
+<td><code>int</code></td>
+<td>Number of tool invocations</td>
+</tr>
+<tr>
+<td><code>request_count</code></td>
+<td><code>int</code></td>
+<td>Number of API requests (increases with tool use)</td>
+</tr>
+<tr>
 <td><code>trace_id</code></td>
 <td><code>str</code></td>
 <td>Tracing correlation ID</td>
 </tr>
+<tr>
+<td><code>usage_details</code></td>
+<td><code>dict</code></td>
+<td>Provider-specific details (e.g., reasoning tokens)</td>
+</tr>
 </tbody>
 </table>
 <p>Use <code>cost_microcents</code> when you need to aggregate costs across many calls - integer math won't drift. Use <code>cost_dollars</code> when displaying to users.</p>
+<p>When prompt caching is enabled (Anthropic, OpenAI with long prompts), <code>cache_read_tokens</code> shows how many tokens came from cache at a 90% discount. This is automatically factored into <code>cost_microcents</code>.</p>
 <h2 id="structured-output">Structured Output<a class="headerlink" href="#structured-output" title="Permanent link">&para;</a></h2>
 <p>Getting strings back means you have to parse them. For anything structured - extracting entities, classifying content, generating schemas - use Pydantic models instead:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span> <span class="nn">pydantic</span> <span class="kn">import</span> <span class="n">BaseModel</span>
