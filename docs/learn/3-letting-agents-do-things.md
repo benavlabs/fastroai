@@ -248,8 +248,8 @@ Be encouraging but realistic.""",
 When someone asks:
 
 ```python
-response = await agent.run("
-    I earn $5000/month and spent $800 on food. Is that too much?"
+response = await agent.run(
+    "I earn $5000/month and spent $800 on food. Is that too much?"
 )
 ```
 
