@@ -44,16 +44,16 @@ nav:
   - FastroAI: index.md
   - Learn:
       - Learning Path: learn/index.md
-      # - "1. LLM Basics": learn/1-llm-basics.md
-      # - "2. Your First Agent": learn/2-your-first-agent.md
-      # - "3. Cost Tracking": learn/3-cost-tracking.md
-      # - "4. Structured Output": learn/4-structured-output.md
-      # - "5. Tools": learn/5-tools.md
-      # - "6. Conversations": learn/6-conversations.md
-      # - "7. Streaming": learn/7-streaming.md
-      # - "8. Pipelines": learn/8-pipelines.md
-      # - "9. Parallel Execution": learn/9-parallel-execution.md
-      # - "10. Production": learn/10-production.md
+      - "0. How Language Models Work": learn/0-how-language-models-work.md
+      - "1. What LLMs Can and Can't Do": learn/1-what-llms-can-and-cant-do.md
+      - "2. Your First Agent": learn/2-your-first-agent.md
+      - "3. Letting Agents Do Things": learn/3-letting-agents-do-things.md
+      - "4. Getting Data Back, Not Just Text": learn/4-getting-data-back.md
+      # - "5. Tracking What You Spend": learn/5-tracking-what-you-spend.md
+      # - "6. When Things Go Wrong": learn/6-error-handling.md
+      # - "7. Multi-Step Workflows": learn/7-pipelines.md
+      # - "8. Finding Problems in Production": learn/8-tracing.md
+      # - "9. Retrieval Augmented Generation": learn/9-rag.md
   - Guides:
       - Overview: guides/index.md
       - FastroAgent: guides/fastro-agent.md

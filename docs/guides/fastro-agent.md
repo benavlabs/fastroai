@@ -79,7 +79,7 @@ Use `run()` to send a message and get a response:
 ```python
 response = await agent.run("What is the capital of France?")
 
-print(response.content)  # "The capital of France is Paris."
+print(response.output)  # "The capital of France is Paris."
 print(response.cost_dollars)  # 0.000234
 ```
 

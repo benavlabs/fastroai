@@ -255,7 +255,7 @@ async def handle_request(request):
         # Log business metrics
         tracer.log_metric(response.trace_id, "response_length", len(response.content))
 
-        return response.content
+        return response.output
 ```
 
 When something goes wrong, search your observability platform by trace ID to see:
