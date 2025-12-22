@@ -397,11 +397,72 @@ if result.usage:
 
 This is the sum of all agent calls across all steps. If you need per-step breakdowns, log them from within your step implementations.
 
+## Routing Between Pipelines
+
+When different inputs need different processing paths, use `BasePipeline` to route between multiple pipelines.
+
+```python
+from fastroai import BasePipeline, Pipeline
+
+class DocumentRouter(BasePipeline[MyDeps, dict, str]):
+    def __init__(self):
+        super().__init__("document_router")
+        self.register_pipeline("simple", simple_pipeline)
+        self.register_pipeline("complex", complex_pipeline)
+
+    async def route(self, input_data: dict, deps: MyDeps) -> str:
+        word_count = len(input_data["text"].split())
+        if word_count < 500:
+            return "simple"
+        return "complex"
+
+router = DocumentRouter()
+result = await router.execute({"text": document}, deps)
+```
+
+The `route` method examines the input and returns the name of a registered pipeline. The router then executes that pipeline and returns its result.
+
+### LLM-Based Routing
+
+You can use an LLM to help classify inputs for routing. Your code still controls what happens with that classification:
+
+```python
+class SmartRouter(BasePipeline[MyDeps, dict, str]):
+    def __init__(self):
+        super().__init__("smart_router")
+        self.classifier = FastroAgent(
+            model="openai:gpt-4o-mini",
+            system_prompt="Classify as 'simple' or 'complex'.",
+            output_type=Literal["simple", "complex"],
+        )
+        self.register_pipeline("simple", simple_pipeline)
+        self.register_pipeline("complex", complex_pipeline)
+
+    async def route(self, input_data: dict, deps: MyDeps) -> str:
+        try:
+            result = await self.classifier.run(input_data["text"])
+            return result.output
+        except Exception:
+            # Classification failed - fall back to simple
+            return "simple"
+```
+
+The LLM handles classification (what it's good at), but your code handles failures and makes the final routing decision.
+
+### Common Use Cases
+
+- **Complexity-based routing**: Simple inputs get fast processing, complex ones get thorough analysis
+- **A/B testing**: Route a percentage of requests to an experimental pipeline
+- **Fallback chains**: Try the primary pipeline, fall back to a simpler one on failure
+
+The router has the same interface as a regular pipeline - it takes inputs and deps, returns a `PipelineResult`. Calling code doesn't need to know routing is happening.
+
 ## Key Files
 
 | Component | Location |
 |-----------|----------|
 | Pipeline | `fastroai/pipelines/pipeline.py` |
+| BasePipeline | `fastroai/pipelines/router.py` |
 | BaseStep | `fastroai/pipelines/base.py` |
 | StepContext | `fastroai/pipelines/base.py` |
 | @step decorator | `fastroai/pipelines/decorators.py` |

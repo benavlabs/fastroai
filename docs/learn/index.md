@@ -95,7 +95,7 @@ This isn't a feature tour. We start from how language models work, build up to a
 
     [:octicons-arrow-right-24: Continue](4-getting-data-back.md)
 
--   :material-cash:{ .lg .middle } **5. Tracking What You Spend**
+-   :material-cash:{ .lg .middle } **[5. Tracking What You Spend](5-tracking-what-you-spend.md)**
 
     *Tokens cost money*
 
@@ -103,9 +103,9 @@ This isn't a feature tour. We start from how language models work, build up to a
 
     Remember tokens from Section 0? Each one costs money. Why microcents matter for billing, how to track usage across calls, and setting budgets before you get surprised.
 
-    *(Coming soon)*
+    [:octicons-arrow-right-24: Continue](5-tracking-what-you-spend.md)
 
--   :material-alert-circle:{ .lg .middle } **6. When Things Go Wrong**
+-   :material-alert-circle:{ .lg .middle } **[6. When Things Go Wrong](6-when-things-go-wrong.md)**
 
     *Error handling*
 
@@ -113,9 +113,9 @@ This isn't a feature tour. We start from how language models work, build up to a
 
     APIs time out. External services fail. The model returns something unexpected. Building AI applications that handle failures gracefully instead of crashing.
 
-    *(Coming soon)*
+    [:octicons-arrow-right-24: Continue](6-when-things-go-wrong.md)
 
--   :material-pipe:{ .lg .middle } **7. Multi-Step Workflows**
+-   :material-pipe:{ .lg .middle } **[7. Multi-Step Workflows](7-multi-step-workflows.md)**
 
     *Pipelines*
 
@@ -123,7 +123,7 @@ This isn't a feature tour. We start from how language models work, build up to a
 
     Real tasks need multiple steps: classify, then research, then write. Pipelines handle dependencies, run independent steps in parallel, and aggregate costs across the workflow.
 
-    *(Coming soon)*
+    [:octicons-arrow-right-24: Continue](7-multi-step-workflows.md)
 
 -   :material-chart-line:{ .lg .middle } **8. Finding Problems in Production**
 
@@ -135,7 +135,17 @@ This isn't a feature tour. We start from how language models work, build up to a
 
     *(Coming soon)*
 
--   :material-database-search:{ .lg .middle } **9. Retrieval Augmented Generation**
+-   :material-test-tube:{ .lg .middle } **9. Testing LLMs**
+
+    *Evals, not just unit tests*
+
+    ---
+
+    You can't assert on LLM outputs the way you test deterministic code. Unit tests, integration tests, and evals - different tools for different problems.
+
+    *(Coming soon)*
+
+-   :material-database-search:{ .lg .middle } **10. Retrieval Augmented Generation**
 
     *When the model doesn't know enough*
 
