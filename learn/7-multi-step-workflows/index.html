@@ -12,13 +12,13 @@
         <meta name="author" content="Benav Labs LLC">
       
       
-        <link rel="canonical" href="https://benavlabs.github.io/fastroai/learn/1-what-llms-can-and-cant-do/">
+        <link rel="canonical" href="https://benavlabs.github.io/fastroai/learn/7-multi-step-workflows/">
       
       
-        <link rel="prev" href="../0-how-language-models-work/">
+        <link rel="prev" href="../6-when-things-go-wrong/">
       
       
-        <link rel="next" href="../2-your-first-agent/">
+        <link rel="next" href="../../guides/">
       
       
       <link rel="icon" href="../../assets/logo-icon.png">
@@ -26,7 +26,7 @@
     
     
       
-        <title>1. What LLMs Can and Can't Do - FastroAI</title>
+        <title>7. Multi-Step Workflows - FastroAI</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#what-llms-can-and-cant-do" class="md-skip">
+        <a href="#multi-step-workflows" class="md-skip">
           Skip to content
         </a>
       
@@ -115,7 +115,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              1. What LLMs Can and Can't Do
+              7. Multi-Step Workflows
             
           </span>
         </div>
@@ -520,32 +520,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    1. What LLMs Can and Can't Do
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../1-what-llms-can-and-cant-do/" class="md-nav__link">
         
   
   
@@ -556,62 +534,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#what-theyre-good-at" class="md-nav__link">
-    <span class="md-ellipsis">
-      What They're Good At
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#where-they-break" class="md-nav__link">
-    <span class="md-ellipsis">
-      Where They Break
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-confidence-problem" class="md-nav__link">
-    <span class="md-ellipsis">
-      The Confidence Problem
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#working-with-limitations" class="md-nav__link">
-    <span class="md-ellipsis">
-      Working With Limitations
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -736,10 +658,32 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../7-multi-step-workflows/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    7. Multi-Step Workflows
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -750,6 +694,80 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#two-schools-of-thought" class="md-nav__link">
+    <span class="md-ellipsis">
+      Two Schools of Thought
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fastroais-approach" class="md-nav__link">
+    <span class="md-ellipsis">
+      FastroAI's Approach
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-pipelines-actually-provide" class="md-nav__link">
+    <span class="md-ellipsis">
+      What Pipelines Actually Provide
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-coordination-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Coordination Problem
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-this-makes-sense" class="md-nav__link">
+    <span class="md-ellipsis">
+      When This Makes Sense
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#whats-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      What's Next
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1245,36 +1263,54 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-theyre-good-at" class="md-nav__link">
+  <a href="#two-schools-of-thought" class="md-nav__link">
     <span class="md-ellipsis">
-      What They're Good At
+      Two Schools of Thought
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#where-they-break" class="md-nav__link">
+  <a href="#fastroais-approach" class="md-nav__link">
     <span class="md-ellipsis">
-      Where They Break
+      FastroAI's Approach
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-confidence-problem" class="md-nav__link">
+  <a href="#what-pipelines-actually-provide" class="md-nav__link">
     <span class="md-ellipsis">
-      The Confidence Problem
+      What Pipelines Actually Provide
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#working-with-limitations" class="md-nav__link">
+  <a href="#the-coordination-problem" class="md-nav__link">
     <span class="md-ellipsis">
-      Working With Limitations
+      The Coordination Problem
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-this-makes-sense" class="md-nav__link">
+    <span class="md-ellipsis">
+      When This Makes Sense
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#whats-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      What's Next
     </span>
   </a>
   
@@ -1299,54 +1335,75 @@
   
 
 
-<h1 id="what-llms-can-and-cant-do">What LLMs Can and Can't Do<a class="headerlink" href="#what-llms-can-and-cant-do" title="Permanent link">&para;</a></h1>
-<p><strong>Knowing when to use them - and when not to.</strong></p>
-<p>LLMs pass medical licensing exams at 90%. They solve International Mathematical Olympiad problems at gold-medal level. They write code that passes 96% of programming challenges.</p>
-<p>Then you add one irrelevant sentence to a math problem, and accuracy drops by 65%.</p>
-<p>This is why you can't just point an LLM at a problem and expect reliable results. Production AI applications need pipelines: the LLM handles what it's good at (understanding language, deciding what to do), code handles what it's good at (computation, verification, external systems), and safeguards catch the failures that <strong>will</strong> happen. You should understand what LLMs are good at and where they break to structure these pipelines.</p>
-<h2 id="what-theyre-good-at">What They're Good At<a class="headerlink" href="#what-theyre-good-at" title="Permanent link">&para;</a></h2>
-<p>LLMs excel when the answer exists somewhere in the patterns of human text.</p>
-<p><strong>Text transformation.</strong> Summarization, paraphrasing, translation, style transfer. These tasks have massive training data, and models have seen countless examples of the same content expressed differently.</p>
-<p><strong>Following formats.</strong> JSON, markdown tables, formal emails. The model has seen every common format millions of times.</p>
-<p><strong>Simple code generation.</strong> Common patterns in popular languages. CRUD operations, API calls, data transformations.</p>
-<p><strong>Classification and extraction.</strong> Spam detection, sentiment analysis, entity extraction. The model reads the input and predicts a label that fits the pattern.</p>
-<p>The common thread: <strong>pattern matching on training data produces useful results.</strong> The model isn't reasoning from first principles - it's recognizing familiar patterns and generating text that fits.</p>
-<h2 id="where-they-break">Where They Break<a class="headerlink" href="#where-they-break" title="Permanent link">&para;</a></h2>
-<p>The failures connect directly to the architecture from Section 0.</p>
-<p><strong>Arithmetic.</strong> Ask "What's 78498743 × 3271123?" and the model might get it wrong. It's predicting tokens, not computing.</p>
-<p><strong>Factual accuracy.</strong> Models hallucinate - they generate plausible-sounding text that's completely false. Hallucination rates have improved from ~38% in 2021 to ~8% in 2025, but research suggests they're theoretically inevitable given how transformers work.</p>
-<p><strong>Long context.</strong> Models claiming 128K token support degrade beyond 10% of their capacity. On multi-document summarization without retrieval, models score below 20% compared to a 56% human baseline.</p>
-<p><strong>Reasoning.</strong> Complex logical chains are fragile. Add an irrelevant clause to a math problem, accuracy drops up to 65%. Chain-of-thought prompting helps some tasks but hurts others. Research found replacing the "reasoning" with meaningless filler tokens still produces good results - suggesting it's pattern retrieval, not actual reasoning.</p>
-<p><strong>Real software engineering.</strong> The 96.2% HumanEval score tests isolated functions. On benchmarks requiring code reuse and progressive reasoning, scores drop to 76%. On real GitHub issues, much lower. AI-generated code introduces security vulnerabilities in 45% of cases. Code churn is projected to double compared to pre-AI codebases.</p>
-<pre class="mermaid"><code>block-beta
-    columns 2
-    A["Junior devs with AI"]:1 B["Senior devs with AI"]:1
-    C["+27-39% productivity"]:1 D["+8-13% productivity"]:1</code></pre>
-<p>Productivity gains favor juniors. One study found experienced developers on familiar codebases took 19% <em>longer</em> with AI tools - prompting overhead, context mismatch, poor task-model fit.</p>
-<p><strong>Autonomous agents.</strong> In controlled tests, the best AI agents completed only 24% of normal office tasks. Some got stuck on popup windows. Others renamed users to "simulate" task completion. Most enterprise AI pilot programs fail to deliver measurable business impact.</p>
-<h2 id="the-confidence-problem">The Confidence Problem<a class="headerlink" href="#the-confidence-problem" title="Permanent link">&para;</a></h2>
-<p>LLMs hardly ever say "I don't know." They produce text with the same confident tone whether they're correct or fabricating.</p>
-<p>You can't tell from the output which is which. And you can't trust your intuition about whether AI is helping. Studies found developers using AI wrote less secure code while believing it was more secure. In one study, developers predicted AI would save them 24% time. After experiencing a 19% slowdown, they still estimated a 20% improvement.</p>
-<p>This matters for application design. Never trust model output for high-stakes decisions without verification. And measure whether AI is actually helping rather than assuming.</p>
-<h2 id="working-with-limitations">Working With Limitations<a class="headerlink" href="#working-with-limitations" title="Permanent link">&para;</a></h2>
-<p>Even though LLMs are so unreliable at so many tasks, they can be used. The main idea is using LLMs for what they are good at, and using deterministic code for the rest.</p>
-<p><strong>For arithmetic:</strong> Don't ask the model to calculate. Have it call code calculates. Let the model decide <em>what</em> to compute, but don't trust it to compute.</p>
-<p><strong>For facts:</strong> Use Retrieval-Augmented Generation. Give the model source documents and have it answer based on those, not its training data. We cover this in Section 9.</p>
-<p><strong>For long context:</strong> Don't rely on the model's ability to attend to everything. Chunk documents, retrieve relevant sections, pass only what's needed.</p>
-<p><strong>For code:</strong> Use AI for boilerplate, documentation, and unfamiliar syntax. Review everything. Run security scans.</p>
-<p><strong>For confidence:</strong> Add citations, fact-checking, or human review. Measure actual outcomes.</p>
-<p>The pattern: <strong>use LLMs for what they're good at, and use code for everything else.</strong></p>
+<h1 id="multi-step-workflows">Multi-Step Workflows<a class="headerlink" href="#multi-step-workflows" title="Permanent link">&para;</a></h1>
+<p><strong>The orchestration problem isn't solved yet.</strong></p>
+<p>Real applications rarely stay simple. You need to classify a document, then research based on that classification, then draft a response, then verify the facts. Each step builds on the previous one. How do you coordinate this?</p>
+<p>The AI industry is still figuring this out. Between 2023 and 2025, frameworks have proliferated - LangChain, LangGraph, CrewAI, AutoGen, MetaGPT - each with different philosophies about how much autonomy to give the LLM. Research papers describe elaborate multi-agent systems where LLMs debate each other, critique each other's work, and dynamically form teams.</p>
+<p>Some of this is genuinely useful. Much of it adds complexity without solving real problems. The fundamental question remains: when you have a multi-step task, what should the LLM decide, and what should your code decide?</p>
+<h2 id="two-schools-of-thought">Two Schools of Thought<a class="headerlink" href="#two-schools-of-thought" title="Permanent link">&para;</a></h2>
+<p>One approach gives the LLM more control. Let the model plan its own steps, decide which tools to call, evaluate whether it's done. Frameworks in this camp build increasingly sophisticated reasoning patterns - ReAct (reasoning and acting in loops), Reflexion (self-evaluation and correction), Tree of Thoughts (exploring multiple reasoning paths).</p>
+<p>The problem is failure modes. Cemri et al. analyzed 1,600+ traces from popular multi-agent frameworks in their 2025 paper <a href="https://arxiv.org/abs/2503.13657">"Why Do Multi-Agent LLM Systems Fail?"</a> and found 14 unique failure categories. Error cascades are common - a small mistake early on gets amplified as each agent builds on faulty foundations. Unlike humans who naturally filter information, LLMs tend to accept flawed input uncritically.</p>
+<p>Their key finding: "Improvements in base model capabilities will be insufficient to address these failures. Good multi-agent design requires organizational principles beyond individual agent capabilities."</p>
+<p>In other words, smarter models won't automatically mean better orchestration. The architecture matters.</p>
+<h2 id="fastroais-approach">FastroAI's Approach<a class="headerlink" href="#fastroais-approach" title="Permanent link">&para;</a></h2>
+<p>FastroAI takes the opposite path: leave as little as possible to the LLM.</p>
+<p>This connects directly to Section 1. LLMs are good at understanding language and generating text. They're not good at planning, maintaining state across operations, or making decisions that require consistency. So let them do what they're good at, and let deterministic code handle the rest.</p>
 <pre class="mermaid"><code>flowchart LR
-    A[Task] --&gt; B{Language-based?}
-    B --&gt;|Yes| C{Can verify or&lt;br/&gt;approximate OK?}
-    B --&gt;|No| D[Use code]
-    C --&gt;|Yes| E[Use LLM]
-    C --&gt;|No| F{Can add&lt;br/&gt;retrieval?}
-    F --&gt;|Yes| E
-    F --&gt;|No| D</code></pre>
-<p>Real applications combine both. The LLM handles the fuzzy language parts. Traditional code handles everything else.</p>
-<p>You now understand what LLMs can and can't do. The next section moves from theory to practice: creating your first agent with FastroAI.</p>
-<p><a class="md-button md-button--primary" href="../2-your-first-agent/">Your First Agent →</a></p>
+    subgraph Your Code
+        A[Step 1] --&gt; B[Step 2]
+        B --&gt; C[Step 3]
+        C --&gt; D[Step 4]
+    end
+    A -.-&gt;|run agent| E[LLM]
+    C -.-&gt;|run agent| E</code></pre>
+<p>The workflow structure is defined in code, not by the LLM. Which steps run, in what order, with what dependencies - that's all deterministic. The LLM only gets involved when you need to generate or understand text.</p>
+<p>This sounds limiting, but consider: most "multi-agent" workflows are really just pipelines with LLM calls at certain points. Classify this document (LLM call), look up related data (database query), generate a summary (LLM call), format for output (code). The orchestration isn't the hard part - it's just function composition. What's hard is making each LLM call reliable.</p>
+<p>The same applies to routing. When different inputs need different processing paths - simple requests get a fast pipeline, complex ones get thorough analysis - your code controls that decision. You might use an LLM to classify the input (that's what they're good at), but your code decides what to do with that classification, handles failures, and picks the pipeline. The routing logic stays in code you control.</p>
+<p>There's another reason to structure workflows this way: LLMs work better when focused. A model with a narrow task - "classify this document into one of five categories" - performs more reliably than one juggling multiple responsibilities. The system prompt is clearer, the expected output is constrained, and there's less room for the model to drift off course. When you break a complex workflow into steps, each agent can be small and specialized. You're not asking one agent to classify, research, write, and verify all at once. You're asking four focused agents to each do one thing well.</p>
+<h2 id="what-pipelines-actually-provide">What Pipelines Actually Provide<a class="headerlink" href="#what-pipelines-actually-provide" title="Permanent link">&para;</a></h2>
+<p>If orchestration is mostly just function composition, why have a pipeline abstraction at all? Three reasons.</p>
+<p>The first is grouping. When you break a task into steps, each step might involve multiple agent calls, tool executions, and intermediate processing. A step is a boundary - it has inputs, outputs, and encapsulates complexity. You can test steps independently, reuse them across different workflows, and reason about them as units.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nd">@step</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mf">30.0</span><span class="p">,</span> <span class="n">retries</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">async</span> <span class="k">def</span> <span class="nf">classify</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span> <span class="n">StepContext</span><span class="p">[</span><span class="n">MyDeps</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">classifier_agent</span><span class="p">,</span> <span class="n">ctx</span><span class="o">.</span><span class="n">get_input</span><span class="p">(</span><span class="s2">&quot;text&quot;</span><span class="p">))</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">output</span>
+</span></code></pre></div>
+<p>The decorator defines the step's behavior - how long to wait, how many retries. The function defines what the step does. The context provides access to inputs, dependencies, and other steps' outputs.</p>
+<p>The second reason is automatic aggregation. Section 5 covered cost tracking for individual calls. Across a multi-step workflow, you want aggregate costs - what did this entire document processing run cost? Without centralized tracking, you're summing manually after each call. The pipeline handles this:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">deps</span><span class="p">)</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">usage</span><span class="o">.</span><span class="n">total_cost_dollars</span><span class="p">)</span>  <span class="c1"># Sum across all steps</span>
+</span></code></pre></div>
+<p>This also enables cost budgets. Set a limit for the entire pipeline, and execution stops before spending more. You can't enforce workflow-wide limits without centralized tracking.</p>
+<p>The third reason is handling dependencies. In a pipeline, steps can depend on each other's outputs:</p>
+<pre class="mermaid"><code>flowchart LR
+    extract --&gt; classify
+    classify --&gt; fetch_market
+    classify --&gt; fetch_user
+    fetch_market --&gt; combine
+    fetch_user --&gt; combine</code></pre>
+<p>This is a directed acyclic graph (DAG). Each edge says "this step needs that step's output." From this structure, the executor derives execution order automatically. It also knows that <code>fetch_market</code> and <code>fetch_user</code> can run in parallel - both depend only on <code>classify</code>, not on each other.</p>
+<p>You didn't write parallelism code. You declared dependencies, and the parallelism followed.</p>
+<h2 id="the-coordination-problem">The Coordination Problem<a class="headerlink" href="#the-coordination-problem" title="Permanent link">&para;</a></h2>
+<p>Beyond execution order, steps need to share data. A step needs access to the original inputs, outputs from steps it depends on, and shared resources like database connections.</p>
+<p>Passing these explicitly gets messy. If a step depends on three others, its function signature needs parameters for all three outputs plus original inputs plus dependencies. Add a step, update signatures everywhere.</p>
+<p>Pipelines solve this with a context object:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">document</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">get_input</span><span class="p">(</span><span class="s2">&quot;document&quot;</span><span class="p">)</span>      <span class="c1"># Original pipeline input</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">entities</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">get_dependency</span><span class="p">(</span><span class="s2">&quot;extract&quot;</span><span class="p">)</span>  <span class="c1"># Output from extract step</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">db</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">deps</span><span class="o">.</span><span class="n">database</span>                    <span class="c1"># Your application dependencies</span>
+</span></code></pre></div>
+<p>The step declares its dependencies in the graph. The context provides them. Adding a new dependency means updating the graph, not changing function signatures throughout your code.</p>
+<h2 id="when-this-makes-sense">When This Makes Sense<a class="headerlink" href="#when-this-makes-sense" title="Permanent link">&para;</a></h2>
+<p>Not every multi-call workflow needs a pipeline. If you're chaining two or three calls sequentially, just write the code:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">entities</span> <span class="o">=</span> <span class="k">await</span> <span class="n">extractor</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">document</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">writer</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Given </span><span class="si">{</span><span class="n">entities</span><span class="o">.</span><span class="n">output</span><span class="si">}</span><span class="s2">, write...&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Pipelines help when you have multiple steps with real dependencies between them, when independent steps should run concurrently, when you need workflow-wide cost tracking or budgets, or when the step logic is complex enough that encapsulation helps.</p>
+<p>They don't help for single agent calls, for truly independent operations (just use <code>asyncio.gather</code>), or when the abstraction overhead isn't worth it.</p>
+<p>The guides cover implementation details - defining steps with classes or decorators, configuring timeouts and retries, handling early termination. But the philosophy is consistent: the LLM generates text. Everything else is deterministic code.</p>
+<h2 id="whats-next">What's Next<a class="headerlink" href="#whats-next" title="Permanent link">&para;</a></h2>
+<p>Pipelines orchestrate your workflow. But when something goes wrong in production - a step is slow, costs are higher than expected, the output is wrong - you need to see what happened. Which step took the time? What was the actual prompt that produced bad output?</p>
+<p>Section 8 covers tracing: seeing inside your AI calls and correlating them with the rest of your application.</p>
+<p><a class="md-button md-button--primary" href="8-finding-problems-in-production.md">Finding Problems in Production →</a></p>
 
 
 
@@ -1382,7 +1439,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../0-how-language-models-work/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 0. How Language Models Work">
+          <a href="../6-when-things-go-wrong/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 6. When Things Go Wrong">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1392,20 +1449,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                0. How Language Models Work
+                6. When Things Go Wrong
               </div>
             </div>
           </a>
         
         
           
-          <a href="../2-your-first-agent/" class="md-footer__link md-footer__link--next" aria-label="Next: 2. Your First Agent">
+          <a href="../../guides/" class="md-footer__link md-footer__link--next" aria-label="Next: Overview">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                2. Your First Agent
+                Overview
               </div>
             </div>
             <div class="md-footer__button md-icon">

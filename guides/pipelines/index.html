@@ -439,6 +439,12 @@
       
         
       
+        
+      
+        
+      
+        
+      
     
     
     
@@ -587,6 +593,75 @@
   
   <span class="md-ellipsis">
     4. Getting Data Back, Not Just Text
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../learn/5-tracking-what-you-spend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    5. Tracking What You Spend
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../learn/6-when-things-go-wrong/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    6. When Things Go Wrong
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../learn/7-multi-step-workflows/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    7. Multi-Step Workflows
     
   </span>
   
@@ -972,6 +1047,39 @@
       Usage Tracking
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#routing-between-pipelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      Routing Between Pipelines
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Routing Between Pipelines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#llm-based-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      LLM-Based Routing
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#common-use-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Common Use Cases
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1539,6 +1647,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#routing-between-pipelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      Routing Between Pipelines
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Routing Between Pipelines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#llm-based-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      LLM-Based Routing
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#common-use-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Common Use Cases
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#key-files" class="md-nav__link">
     <span class="md-ellipsis">
       Key Files
@@ -1871,6 +2012,55 @@
 </span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Total cost: $</span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">usage</span><span class="o">.</span><span class="n">total_cost_dollars</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <p>This is the sum of all agent calls across all steps. If you need per-step breakdowns, log them from within your step implementations.</p>
+<h2 id="routing-between-pipelines">Routing Between Pipelines<a class="headerlink" href="#routing-between-pipelines" title="Permanent link">&para;</a></h2>
+<p>When different inputs need different processing paths, use <code>BasePipeline</code> to route between multiple pipelines.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span> <span class="nn">fastroai</span> <span class="kn">import</span> <span class="n">BasePipeline</span><span class="p">,</span> <span class="n">Pipeline</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="k">class</span> <span class="nc">DocumentRouter</span><span class="p">(</span><span class="n">BasePipeline</span><span class="p">[</span><span class="n">MyDeps</span><span class="p">,</span> <span class="nb">dict</span><span class="p">,</span> <span class="nb">str</span><span class="p">]):</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;document_router&quot;</span><span class="p">)</span>
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">register_pipeline</span><span class="p">(</span><span class="s2">&quot;simple&quot;</span><span class="p">,</span> <span class="n">simple_pipeline</span><span class="p">)</span>
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">register_pipeline</span><span class="p">(</span><span class="s2">&quot;complex&quot;</span><span class="p">,</span> <span class="n">complex_pipeline</span><span class="p">)</span>
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>
+</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>    <span class="k">async</span> <span class="k">def</span> <span class="nf">route</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">deps</span><span class="p">:</span> <span class="n">MyDeps</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>        <span class="n">word_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_data</span><span class="p">[</span><span class="s2">&quot;text&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>        <span class="k">if</span> <span class="n">word_count</span> <span class="o">&lt;</span> <span class="mi">500</span><span class="p">:</span>
+</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a>            <span class="k">return</span> <span class="s2">&quot;simple&quot;</span>
+</span><span id="__span-17-13"><a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a>        <span class="k">return</span> <span class="s2">&quot;complex&quot;</span>
+</span><span id="__span-17-14"><a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a>
+</span><span id="__span-17-15"><a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a><span class="n">router</span> <span class="o">=</span> <span class="n">DocumentRouter</span><span class="p">()</span>
+</span><span id="__span-17-16"><a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a><span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">router</span><span class="o">.</span><span class="n">execute</span><span class="p">({</span><span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="n">document</span><span class="p">},</span> <span class="n">deps</span><span class="p">)</span>
+</span></code></pre></div>
+<p>The <code>route</code> method examines the input and returns the name of a registered pipeline. The router then executes that pipeline and returns its result.</p>
+<h3 id="llm-based-routing">LLM-Based Routing<a class="headerlink" href="#llm-based-routing" title="Permanent link">&para;</a></h3>
+<p>You can use an LLM to help classify inputs for routing. Your code still controls what happens with that classification:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="k">class</span> <span class="nc">SmartRouter</span><span class="p">(</span><span class="n">BasePipeline</span><span class="p">[</span><span class="n">MyDeps</span><span class="p">,</span> <span class="nb">dict</span><span class="p">,</span> <span class="nb">str</span><span class="p">]):</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s2">&quot;smart_router&quot;</span><span class="p">)</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">classifier</span> <span class="o">=</span> <span class="n">FastroAgent</span><span class="p">(</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>            <span class="n">model</span><span class="o">=</span><span class="s2">&quot;openai:gpt-4o-mini&quot;</span><span class="p">,</span>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>            <span class="n">system_prompt</span><span class="o">=</span><span class="s2">&quot;Classify as &#39;simple&#39; or &#39;complex&#39;.&quot;</span><span class="p">,</span>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>            <span class="n">output_type</span><span class="o">=</span><span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;simple&quot;</span><span class="p">,</span> <span class="s2">&quot;complex&quot;</span><span class="p">],</span>
+</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>        <span class="p">)</span>
+</span><span id="__span-18-9"><a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">register_pipeline</span><span class="p">(</span><span class="s2">&quot;simple&quot;</span><span class="p">,</span> <span class="n">simple_pipeline</span><span class="p">)</span>
+</span><span id="__span-18-10"><a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">register_pipeline</span><span class="p">(</span><span class="s2">&quot;complex&quot;</span><span class="p">,</span> <span class="n">complex_pipeline</span><span class="p">)</span>
+</span><span id="__span-18-11"><a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a>
+</span><span id="__span-18-12"><a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a>    <span class="k">async</span> <span class="k">def</span> <span class="nf">route</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">deps</span><span class="p">:</span> <span class="n">MyDeps</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span id="__span-18-13"><a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a>        <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-18-14"><a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a>            <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">classifier</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">input_data</span><span class="p">[</span><span class="s2">&quot;text&quot;</span><span class="p">])</span>
+</span><span id="__span-18-15"><a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a>            <span class="k">return</span> <span class="n">result</span><span class="o">.</span><span class="n">output</span>
+</span><span id="__span-18-16"><a id="__codelineno-18-16" name="__codelineno-18-16" href="#__codelineno-18-16"></a>        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+</span><span id="__span-18-17"><a id="__codelineno-18-17" name="__codelineno-18-17" href="#__codelineno-18-17"></a>            <span class="c1"># Classification failed - fall back to simple</span>
+</span><span id="__span-18-18"><a id="__codelineno-18-18" name="__codelineno-18-18" href="#__codelineno-18-18"></a>            <span class="k">return</span> <span class="s2">&quot;simple&quot;</span>
+</span></code></pre></div>
+<p>The LLM handles classification (what it's good at), but your code handles failures and makes the final routing decision.</p>
+<h3 id="common-use-cases">Common Use Cases<a class="headerlink" href="#common-use-cases" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Complexity-based routing</strong>: Simple inputs get fast processing, complex ones get thorough analysis</li>
+<li><strong>A/B testing</strong>: Route a percentage of requests to an experimental pipeline</li>
+<li><strong>Fallback chains</strong>: Try the primary pipeline, fall back to a simpler one on failure</li>
+</ul>
+<p>The router has the same interface as a regular pipeline - it takes inputs and deps, returns a <code>PipelineResult</code>. Calling code doesn't need to know routing is happening.</p>
 <h2 id="key-files">Key Files<a class="headerlink" href="#key-files" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1883,6 +2073,10 @@
 <tr>
 <td>Pipeline</td>
 <td><code>fastroai/pipelines/pipeline.py</code></td>
+</tr>
+<tr>
+<td>BasePipeline</td>
+<td><code>fastroai/pipelines/router.py</code></td>
 </tr>
 <tr>
 <td>BaseStep</td>

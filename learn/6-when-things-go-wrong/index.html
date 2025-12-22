@@ -12,13 +12,13 @@
         <meta name="author" content="Benav Labs LLC">
       
       
-        <link rel="canonical" href="https://benavlabs.github.io/fastroai/learn/1-what-llms-can-and-cant-do/">
+        <link rel="canonical" href="https://benavlabs.github.io/fastroai/learn/6-when-things-go-wrong/">
       
       
-        <link rel="prev" href="../0-how-language-models-work/">
+        <link rel="prev" href="../5-tracking-what-you-spend/">
       
       
-        <link rel="next" href="../2-your-first-agent/">
+        <link rel="next" href="../7-multi-step-workflows/">
       
       
       <link rel="icon" href="../../assets/logo-icon.png">
@@ -26,7 +26,7 @@
     
     
       
-        <title>1. What LLMs Can and Can't Do - FastroAI</title>
+        <title>6. When Things Go Wrong - FastroAI</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#what-llms-can-and-cant-do" class="md-skip">
+        <a href="#when-things-go-wrong" class="md-skip">
           Skip to content
         </a>
       
@@ -115,7 +115,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              1. What LLMs Can and Can't Do
+              6. When Things Go Wrong
             
           </span>
         </div>
@@ -520,32 +520,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    1. What LLMs Can and Can't Do
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../1-what-llms-can-and-cant-do/" class="md-nav__link">
         
   
   
@@ -556,62 +534,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#what-theyre-good-at" class="md-nav__link">
-    <span class="md-ellipsis">
-      What They're Good At
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#where-they-break" class="md-nav__link">
-    <span class="md-ellipsis">
-      Where They Break
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-confidence-problem" class="md-nav__link">
-    <span class="md-ellipsis">
-      The Confidence Problem
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#working-with-limitations" class="md-nav__link">
-    <span class="md-ellipsis">
-      Working With Limitations
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -713,10 +635,32 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../6-when-things-go-wrong/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    6. When Things Go Wrong
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -727,6 +671,80 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-failure-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Failure Modes
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#failing-at-the-right-level" class="md-nav__link">
+    <span class="md-ellipsis">
+      Failing at the Right Level
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      Model Failures
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fastroai-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      FastroAI Errors
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#designing-for-failure" class="md-nav__link">
+    <span class="md-ellipsis">
+      Designing for Failure
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#whats-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      What's Next
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1245,36 +1263,54 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-theyre-good-at" class="md-nav__link">
+  <a href="#the-failure-modes" class="md-nav__link">
     <span class="md-ellipsis">
-      What They're Good At
+      The Failure Modes
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#where-they-break" class="md-nav__link">
+  <a href="#failing-at-the-right-level" class="md-nav__link">
     <span class="md-ellipsis">
-      Where They Break
+      Failing at the Right Level
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-confidence-problem" class="md-nav__link">
+  <a href="#model-failures" class="md-nav__link">
     <span class="md-ellipsis">
-      The Confidence Problem
+      Model Failures
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#working-with-limitations" class="md-nav__link">
+  <a href="#fastroai-errors" class="md-nav__link">
     <span class="md-ellipsis">
-      Working With Limitations
+      FastroAI Errors
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#designing-for-failure" class="md-nav__link">
+    <span class="md-ellipsis">
+      Designing for Failure
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#whats-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      What's Next
     </span>
   </a>
   
@@ -1299,54 +1335,131 @@
   
 
 
-<h1 id="what-llms-can-and-cant-do">What LLMs Can and Can't Do<a class="headerlink" href="#what-llms-can-and-cant-do" title="Permanent link">&para;</a></h1>
-<p><strong>Knowing when to use them - and when not to.</strong></p>
-<p>LLMs pass medical licensing exams at 90%. They solve International Mathematical Olympiad problems at gold-medal level. They write code that passes 96% of programming challenges.</p>
-<p>Then you add one irrelevant sentence to a math problem, and accuracy drops by 65%.</p>
-<p>This is why you can't just point an LLM at a problem and expect reliable results. Production AI applications need pipelines: the LLM handles what it's good at (understanding language, deciding what to do), code handles what it's good at (computation, verification, external systems), and safeguards catch the failures that <strong>will</strong> happen. You should understand what LLMs are good at and where they break to structure these pipelines.</p>
-<h2 id="what-theyre-good-at">What They're Good At<a class="headerlink" href="#what-theyre-good-at" title="Permanent link">&para;</a></h2>
-<p>LLMs excel when the answer exists somewhere in the patterns of human text.</p>
-<p><strong>Text transformation.</strong> Summarization, paraphrasing, translation, style transfer. These tasks have massive training data, and models have seen countless examples of the same content expressed differently.</p>
-<p><strong>Following formats.</strong> JSON, markdown tables, formal emails. The model has seen every common format millions of times.</p>
-<p><strong>Simple code generation.</strong> Common patterns in popular languages. CRUD operations, API calls, data transformations.</p>
-<p><strong>Classification and extraction.</strong> Spam detection, sentiment analysis, entity extraction. The model reads the input and predicts a label that fits the pattern.</p>
-<p>The common thread: <strong>pattern matching on training data produces useful results.</strong> The model isn't reasoning from first principles - it's recognizing familiar patterns and generating text that fits.</p>
-<h2 id="where-they-break">Where They Break<a class="headerlink" href="#where-they-break" title="Permanent link">&para;</a></h2>
-<p>The failures connect directly to the architecture from Section 0.</p>
-<p><strong>Arithmetic.</strong> Ask "What's 78498743 × 3271123?" and the model might get it wrong. It's predicting tokens, not computing.</p>
-<p><strong>Factual accuracy.</strong> Models hallucinate - they generate plausible-sounding text that's completely false. Hallucination rates have improved from ~38% in 2021 to ~8% in 2025, but research suggests they're theoretically inevitable given how transformers work.</p>
-<p><strong>Long context.</strong> Models claiming 128K token support degrade beyond 10% of their capacity. On multi-document summarization without retrieval, models score below 20% compared to a 56% human baseline.</p>
-<p><strong>Reasoning.</strong> Complex logical chains are fragile. Add an irrelevant clause to a math problem, accuracy drops up to 65%. Chain-of-thought prompting helps some tasks but hurts others. Research found replacing the "reasoning" with meaningless filler tokens still produces good results - suggesting it's pattern retrieval, not actual reasoning.</p>
-<p><strong>Real software engineering.</strong> The 96.2% HumanEval score tests isolated functions. On benchmarks requiring code reuse and progressive reasoning, scores drop to 76%. On real GitHub issues, much lower. AI-generated code introduces security vulnerabilities in 45% of cases. Code churn is projected to double compared to pre-AI codebases.</p>
-<pre class="mermaid"><code>block-beta
-    columns 2
-    A["Junior devs with AI"]:1 B["Senior devs with AI"]:1
-    C["+27-39% productivity"]:1 D["+8-13% productivity"]:1</code></pre>
-<p>Productivity gains favor juniors. One study found experienced developers on familiar codebases took 19% <em>longer</em> with AI tools - prompting overhead, context mismatch, poor task-model fit.</p>
-<p><strong>Autonomous agents.</strong> In controlled tests, the best AI agents completed only 24% of normal office tasks. Some got stuck on popup windows. Others renamed users to "simulate" task completion. Most enterprise AI pilot programs fail to deliver measurable business impact.</p>
-<h2 id="the-confidence-problem">The Confidence Problem<a class="headerlink" href="#the-confidence-problem" title="Permanent link">&para;</a></h2>
-<p>LLMs hardly ever say "I don't know." They produce text with the same confident tone whether they're correct or fabricating.</p>
-<p>You can't tell from the output which is which. And you can't trust your intuition about whether AI is helping. Studies found developers using AI wrote less secure code while believing it was more secure. In one study, developers predicted AI would save them 24% time. After experiencing a 19% slowdown, they still estimated a 20% improvement.</p>
-<p>This matters for application design. Never trust model output for high-stakes decisions without verification. And measure whether AI is actually helping rather than assuming.</p>
-<h2 id="working-with-limitations">Working With Limitations<a class="headerlink" href="#working-with-limitations" title="Permanent link">&para;</a></h2>
-<p>Even though LLMs are so unreliable at so many tasks, they can be used. The main idea is using LLMs for what they are good at, and using deterministic code for the rest.</p>
-<p><strong>For arithmetic:</strong> Don't ask the model to calculate. Have it call code calculates. Let the model decide <em>what</em> to compute, but don't trust it to compute.</p>
-<p><strong>For facts:</strong> Use Retrieval-Augmented Generation. Give the model source documents and have it answer based on those, not its training data. We cover this in Section 9.</p>
-<p><strong>For long context:</strong> Don't rely on the model's ability to attend to everything. Chunk documents, retrieve relevant sections, pass only what's needed.</p>
-<p><strong>For code:</strong> Use AI for boilerplate, documentation, and unfamiliar syntax. Review everything. Run security scans.</p>
-<p><strong>For confidence:</strong> Add citations, fact-checking, or human review. Measure actual outcomes.</p>
-<p>The pattern: <strong>use LLMs for what they're good at, and use code for everything else.</strong></p>
-<pre class="mermaid"><code>flowchart LR
-    A[Task] --&gt; B{Language-based?}
-    B --&gt;|Yes| C{Can verify or&lt;br/&gt;approximate OK?}
-    B --&gt;|No| D[Use code]
-    C --&gt;|Yes| E[Use LLM]
-    C --&gt;|No| F{Can add&lt;br/&gt;retrieval?}
-    F --&gt;|Yes| E
-    F --&gt;|No| D</code></pre>
-<p>Real applications combine both. The LLM handles the fuzzy language parts. Traditional code handles everything else.</p>
-<p>You now understand what LLMs can and can't do. The next section moves from theory to practice: creating your first agent with FastroAI.</p>
-<p><a class="md-button md-button--primary" href="../2-your-first-agent/">Your First Agent →</a></p>
+<h1 id="when-things-go-wrong">When Things Go Wrong<a class="headerlink" href="#when-things-go-wrong" title="Permanent link">&para;</a></h1>
+<p><strong>AI applications fail in ways traditional software doesn't.</strong></p>
+<p>A database query either returns rows or throws an exception. You can test every code path. But an LLM might work perfectly 99 times and fail on the 100th because the input triggered some edge case in its training data. The response might be valid JSON but contain hallucinated data. The API might rate-limit you mid-conversation.</p>
+<p>Traditional error handling assumes deterministic failure modes. AI applications need a different approach.</p>
+<h2 id="the-failure-modes">The Failure Modes<a class="headerlink" href="#the-failure-modes" title="Permanent link">&para;</a></h2>
+<p>Some failures throw exceptions - network timeouts, rate limits, API outages. These are the infrastructure failures you're used to. Traditional error handling catches them.</p>
+<p>Model failures are different. The model generates invalid JSON when you asked for structured output. It hallucinates a function that doesn't exist. It ignores your constraints. You get a 200 response with valid-looking content that's wrong. No exception to catch.</p>
+<p>Then there are application failures - your code can't handle what came back. The model returned a category you didn't expect, a date in the wrong format, a confidence score outside your valid range. These are mismatches between what you assumed and what happened.</p>
+<h2 id="failing-at-the-right-level">Failing at the Right Level<a class="headerlink" href="#failing-at-the-right-level" title="Permanent link">&para;</a></h2>
+<p>When a tool makes an HTTP request that times out, where should that failure surface?</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">async</span> <span class="k">def</span> <span class="nf">get_stock_price</span><span class="p">(</span><span class="n">symbol</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get current stock price.&quot;&quot;&quot;</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="k">async</span> <span class="k">with</span> <span class="n">httpx</span><span class="o">.</span><span class="n">AsyncClient</span><span class="p">()</span> <span class="k">as</span> <span class="n">client</span><span class="p">:</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>        <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;https://api.stocks.com/</span><span class="si">{</span><span class="n">symbol</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>        <span class="k">return</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">&quot;price&quot;</span><span class="p">]</span>
+</span></code></pre></div>
+<p>If this throws, the exception bubbles up through the agent, terminating the entire request. The user sees an error page. You've paid for the tokens up to that point. The conversation is dead.</p>
+<p>But the agent could have recovered. Given a chance, it might say "I couldn't check the stock price right now - would you like me to try something else?" That's a better user experience, and it doesn't waste the context you've built.</p>
+<p>Section 3 introduced <code>@safe_tool</code> for exactly this:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nd">@safe_tool</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">max_retries</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">async</span> <span class="k">def</span> <span class="nf">get_stock_price</span><span class="p">(</span><span class="n">symbol</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get current stock price.&quot;&quot;&quot;</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="o">...</span>
+</span></code></pre></div>
+<p>The tool catches its own failures and returns an error message instead of throwing. The agent sees the message and can respond appropriately. The failure is contained at the tool level, where recovery is possible.</p>
+<p>A tool failure shouldn't necessarily crash the agent. An agent failure shouldn't crash the pipeline. Let failures surface where they can be handled.</p>
+<h2 id="model-failures">Model Failures<a class="headerlink" href="#model-failures" title="Permanent link">&para;</a></h2>
+<p>Infrastructure failures throw exceptions. Model failures don't - they look like success.</p>
+<p>You asked for a JSON response:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">class</span> <span class="nc">StockAnalysis</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="n">symbol</span><span class="p">:</span> <span class="nb">str</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="n">recommendation</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;buy&quot;</span><span class="p">,</span> <span class="s2">&quot;hold&quot;</span><span class="p">,</span> <span class="s2">&quot;sell&quot;</span><span class="p">]</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">confidence</span><span class="p">:</span> <span class="nb">float</span>
+</span></code></pre></div>
+<p>The model returns:</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span><span class="nt">&quot;symbol&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;AAPL&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;recommendation&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;strong buy&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;confidence&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.95</span><span class="p">}</span>
+</span></code></pre></div>
+<p>Pydantic validation fails because "strong buy" isn't in your Literal. That's actually the good case - at least you caught it. The worse case is when the response is valid but wrong. The model confidently returns <code>"confidence": 0.99</code> for a recommendation it made up.</p>
+<p>Structured output (Section 4) constrains format, but models can still hallucinate within those constraints. You need defenses:</p>
+<table>
+<thead>
+<tr>
+<th>Problem</th>
+<th>Example</th>
+<th>Defense</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Invalid format</td>
+<td><code>"strong buy"</code> instead of <code>"buy"</code></td>
+<td><code>Literal</code> types, Pydantic validation</td>
+</tr>
+<tr>
+<td>Hallucinated data</td>
+<td>Stock symbol that doesn't exist</td>
+<td>Validate against external source</td>
+</tr>
+<tr>
+<td>Inconsistent reasoning</td>
+<td>High confidence for weak argument</td>
+<td>Check recommendation matches reasoning</td>
+</tr>
+<tr>
+<td>Repetition loops</td>
+<td>Model repeats same phrase</td>
+<td>Detect repeated content, abort</td>
+</tr>
+<tr>
+<td>Excessive hedging</td>
+<td>"It might possibly be..."</td>
+<td>Check for hedge phrases, re-prompt</td>
+</tr>
+<tr>
+<td>Contradictions</td>
+<td>"Buy" after explaining why to sell</td>
+<td>Compare conclusion to supporting text</td>
+</tr>
+</tbody>
+</table>
+<p>For critical outputs, temperature 0 gives more consistent results - not guaranteed correct, but less random.</p>
+<p>How do you know your defenses work? You can't unit test an LLM the way you test deterministic code. Section 9 covers evals - systematic ways to test model behavior across many inputs.</p>
+<h2 id="fastroai-errors">FastroAI Errors<a class="headerlink" href="#fastroai-errors" title="Permanent link">&para;</a></h2>
+<p>FastroAI uses a structured exception hierarchy:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">FastroAIError</span>                    <span class="c1"># Base for all FastroAI errors</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="err">├──</span> <span class="n">PipelineValidationError</span>      <span class="c1"># Invalid pipeline config</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="err">├──</span> <span class="n">StepExecutionError</span>           <span class="c1"># Step failed during execution</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="err">└──</span> <span class="n">CostBudgetExceededError</span>      <span class="c1"># Budget limit hit</span>
+</span></code></pre></div>
+<p>Catch <code>FastroAIError</code> to handle all library-specific errors:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span> <span class="nn">fastroai</span> <span class="kn">import</span> <span class="n">FastroAIError</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="k">try</span><span class="p">:</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">deps</span><span class="p">)</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="k">except</span> <span class="n">FastroAIError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Pipeline error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Or catch specific exceptions when you need different handling:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span> <span class="nn">fastroai</span> <span class="kn">import</span> <span class="n">CostBudgetExceededError</span><span class="p">,</span> <span class="n">StepExecutionError</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="k">try</span><span class="p">:</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">deps</span><span class="p">)</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="k">except</span> <span class="n">CostBudgetExceededError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="c1"># Graceful degradation - return partial results</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    <span class="k">return</span> <span class="n">partial_result</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="k">except</span> <span class="n">StepExecutionError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="c1"># Log and retry the specific step</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Step </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">step_id</span><span class="si">}</span><span class="s2"> failed: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">original_error</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<p><code>CostBudgetExceededError</code> includes details about what happened:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">except</span> <span class="n">CostBudgetExceededError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Budget: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">budget_microcents</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Actual: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">actual_microcents</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Step: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">step_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<h2 id="designing-for-failure">Designing for Failure<a class="headerlink" href="#designing-for-failure" title="Permanent link">&para;</a></h2>
+<p>The goal isn't preventing all failures - it's ensuring failures don't cascade.</p>
+<p>Configuration errors should fail fast. <code>PipelineValidationError</code> raises at construction time, not runtime - invalid dependencies, missing steps, circular references are caught before you waste tokens.</p>
+<p>Tool failures can be contained or propagated depending on what you need. <code>@safe_tool</code> lets the agent recover gracefully - useful when the tool is optional or the agent can try alternatives. Let exceptions propagate when you need to handle them at a higher level, retry the whole operation, or fail fast.</p>
+<p>Cost budgets prevent runaway loops. Pipelines accept a <code>cost_budget</code> that raises <code>CostBudgetExceededError</code> when exceeded - better to fail explicitly than discover a $500 bill.</p>
+<p>And when something does fail, you need to know what led to it. The prompt, the model's reasoning, the tool calls, the responses. Section 8 covers tracing, but the point here is that debugging AI failures without context is guesswork.</p>
+<h2 id="whats-next">What's Next<a class="headerlink" href="#whats-next" title="Permanent link">&para;</a></h2>
+<p>Single-agent applications can only go so far. Real tasks often require multiple steps: classify the input, research the topic, draft a response, verify the facts, format the output. Each step might use a different model, different tools, different prompts.</p>
+<p>Section 7 introduces pipelines - multi-step workflows that handle dependencies, run independent steps in parallel, and aggregate costs across the whole process.</p>
+<p><a class="md-button md-button--primary" href="../7-multi-step-workflows/">Multi-Step Workflows →</a></p>
 
 
 
@@ -1382,7 +1495,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../0-how-language-models-work/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 0. How Language Models Work">
+          <a href="../5-tracking-what-you-spend/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 5. Tracking What You Spend">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1392,20 +1505,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                0. How Language Models Work
+                5. Tracking What You Spend
               </div>
             </div>
           </a>
         
         
           
-          <a href="../2-your-first-agent/" class="md-footer__link md-footer__link--next" aria-label="Next: 2. Your First Agent">
+          <a href="../7-multi-step-workflows/" class="md-footer__link md-footer__link--next" aria-label="Next: 7. Multi-Step Workflows">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                2. Your First Agent
+                7. Multi-Step Workflows
               </div>
             </div>
             <div class="md-footer__button md-icon">
