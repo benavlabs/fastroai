@@ -49,11 +49,12 @@ nav:
       - "2. Your First Agent": learn/2-your-first-agent.md
       - "3. Letting Agents Do Things": learn/3-letting-agents-do-things.md
       - "4. Getting Data Back, Not Just Text": learn/4-getting-data-back.md
-      # - "5. Tracking What You Spend": learn/5-tracking-what-you-spend.md
-      # - "6. When Things Go Wrong": learn/6-error-handling.md
-      # - "7. Multi-Step Workflows": learn/7-pipelines.md
-      # - "8. Finding Problems in Production": learn/8-tracing.md
-      # - "9. Retrieval Augmented Generation": learn/9-rag.md
+      - "5. Tracking What You Spend": learn/5-tracking-what-you-spend.md
+      - "6. When Things Go Wrong": learn/6-when-things-go-wrong.md
+      - "7. Multi-Step Workflows": learn/7-multi-step-workflows.md
+      # - "8. Finding Problems in Production": learn/8-finding-problems-in-production.md
+      # - "9. Testing LLMs": learn/9-testing-llms.md
+      # - "10. Retrieval Augmented Generation": learn/10-rag.md
   - Guides:
       - Overview: guides/index.md
       - FastroAgent: guides/fastro-agent.md
