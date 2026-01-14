@@ -5,12 +5,12 @@
 ### **Lightweight AI orchestration built on PydanticAI.**
 
 <p align="center">
-  <a href="https://benavlabs.github.io/fastroai">
+  <a href="https://docs.fastro.ai/lib/">
     <img src="https://github.com/benavlabs/fastroai/blob/main/docs/assets/logo.png?raw=true" alt="FastroAI Logo" width="25%">
   </a>
 </p>
 
-[Documentation](https://benavlabs.github.io/fastroai) • [Discord](https://discord.com/invite/TEmPs22gqB) • [GitHub](https://github.com/benavlabs/fastroai)
+[Documentation](https://docs.fastro.ai/lib/) • [Discord](https://discord.com/invite/TEmPs22gqB) • [GitHub](https://github.com/benavlabs/fastroai)
 
 <br/>
 
@@ -113,9 +113,9 @@ If the API times out, the AI receives an error message and can respond gracefull
 
 ## Documentation
 
-- **[Quick Start](https://benavlabs.github.io/fastroai/#quick-start)**: Install and run your first agent in 2 minutes.
-- **[Guides](https://benavlabs.github.io/fastroai/guides/)**: Deep dives into agents, pipelines, tools, and tracing.
-- **[API Reference](https://benavlabs.github.io/fastroai/api/)**: Complete reference for all classes and functions.
+- **[Quick Start](https://docs.fastro.ai/lib/#quick-start)**: Install and run your first agent in 2 minutes.
+- **[Guides](https://docs.fastro.ai/lib/guides/)**: Deep dives into agents, pipelines, tools, and tracing.
+- **[API Reference](https://docs.fastro.ai/lib/api/)**: Complete reference for all classes and functions.
 
 ## FastroAI Template
 
