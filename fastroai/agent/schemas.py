@@ -111,7 +111,7 @@ class ChatResponse(BaseModel, Generic[OutputT]):
 
     output: OutputT = Field(description="The typed output from the agent.")
     content: str = Field(description="String representation of the output.")
-    model: str = Field(description="Model that generated the response.")
+    model: str | None = Field(description="Model that generated the response. None if unknown.")
 
     input_tokens: int = Field(description="Tokens consumed by input/prompt.")
     output_tokens: int = Field(description="Tokens in response/completion.")
