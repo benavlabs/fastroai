@@ -6,6 +6,31 @@ The Changelog documents all notable changes made to FastroAI. This includes new 
 
 ---
 
+## [0.4.1] - Jan 25, 2026
+
+#### Fixed
+- **FallbackModel Tracking** by [@igorbenav](https://github.com/igorbenav)
+  - FastroAgent now correctly tracks the actual model that processed the request when using PydanticAI's `FallbackModel`
+  - Model name is extracted from `ModelResponse.model_name` in the message history instead of non-existent `usage.model`
+  - Fixes incorrect cost calculations when using model wrappers (e.g., DeepSeek primary with GPT-4o fallback)
+
+- **No False Model Assumptions** by [@igorbenav](https://github.com/igorbenav)
+  - When using escape hatch (`agent=`) without explicit `model=`, FastroAgent no longer assumes `gpt-4o`
+  - If model can't be detected from response, returns `model=None` and `cost_microcents=0` with a warning
+  - Tokens are still tracked accurately even when model is unknown
+
+#### Changed
+- `ChatResponse.model` is now `str | None` (was `str`) to represent unknown models
+- `CostCalculator.calculate_cost()` accepts `model: str | None` and returns `0` for `None`
+- Added logging when model detection fails and no fallback is configured
+
+#### Documentation
+- Updated RELEASE.md with 0.4.1 release notes
+
+**Full Changelog**: https://github.com/benavlabs/fastroai/compare/v0.4.0...v0.4.1
+
+---
+
 ## [0.4.0] - Dec 20, 2025
 
 #### Added

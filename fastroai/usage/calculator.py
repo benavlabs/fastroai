@@ -80,7 +80,7 @@ class CostCalculator:
 
     def calculate_cost(
         self,
-        model: str,
+        model: str | None,
         input_tokens: int,
         output_tokens: int,
         *,
@@ -96,7 +96,7 @@ class CostCalculator:
         is enabled. Cache read tokens are typically 90% cheaper on Anthropic.
 
         Args:
-            model: Model identifier (e.g., "gpt-4o" or "openai:gpt-4o").
+            model: Model identifier (e.g., "gpt-4o" or "openai:gpt-4o"). None for unknown.
             input_tokens: Number of input/prompt tokens (includes cached + uncached).
             output_tokens: Number of output/completion tokens.
             cache_read_tokens: Tokens read from prompt cache (typically 90% cheaper).
@@ -106,7 +106,7 @@ class CostCalculator:
             cache_audio_read_tokens: Audio tokens read from cache.
 
         Returns:
-            Cost in microcents (integer). Returns 0 for unknown models.
+            Cost in microcents (integer). Returns 0 for unknown or None models.
 
         Examples:
             ```python
@@ -125,6 +125,9 @@ class CostCalculator:
             )
             ```
         """
+        if model is None:
+            return 0
+
         normalized = self._normalize_model_name(model)
 
         if normalized in self._overrides:

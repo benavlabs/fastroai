@@ -281,7 +281,6 @@ class TestFastroAgentRun:
         usage.input_tokens = 100
         usage.output_tokens = 50
         usage.total_tokens = 150
-        usage.model = "gpt-4o"
         # Cache tokens
         usage.cache_read_tokens = 0
         usage.cache_write_tokens = 0
@@ -294,6 +293,11 @@ class TestFastroAgentRun:
         usage.tool_calls = 0
         usage.details = {}
         result.usage.return_value = usage
+
+        # Mock ModelResponse with model_name (used for model extraction)
+        mock_response = MagicMock()
+        mock_response.model_name = "gpt-4o"
+        result.all_messages.return_value = [mock_response]
 
         result.new_messages.return_value = []
         return result
@@ -611,3 +615,145 @@ class TestToolCallExtraction:
 
         tool_calls = agent._extract_tool_calls_from_messages(BadMessages())
         assert tool_calls == []
+
+
+class TestModelExtraction:
+    """Tests for model extraction from responses (FallbackModel support)."""
+
+    async def test_extracts_model_from_response_messages(self) -> None:
+        """Should extract model_name from ModelResponse in messages."""
+        # Use "test" model to avoid API key requirements
+        agent = FastroAgent(model="test")
+
+        # Mock a result where deepseek-chat was the actual model used
+        mock_response = MagicMock()
+        mock_response.model_name = "deepseek-chat"
+
+        mock_result = MagicMock()
+        mock_result.all_messages.return_value = [mock_response]
+        mock_result.usage.return_value = MagicMock(
+            input_tokens=100,
+            output_tokens=50,
+            total_tokens=150,
+            cache_read_tokens=0,
+            cache_write_tokens=0,
+            input_audio_tokens=0,
+            output_audio_tokens=0,
+            cache_audio_read_tokens=0,
+            requests=1,
+            tool_calls=0,
+            details={},
+        )
+        mock_result.output = "test output"
+        mock_result.new_messages.return_value = []
+
+        with patch.object(agent._agent, "run", new_callable=AsyncMock) as mock_run:
+            mock_run.return_value = mock_result
+            response = await agent.run("Hello")
+
+        # Should use the model from the response, not the configured default
+        assert response.model == "deepseek-chat"
+
+    async def test_fallback_to_configured_model_when_extraction_fails(self) -> None:
+        """Should fall back to configured model if extraction fails."""
+        # Use "test" model to avoid API key requirements
+        agent = FastroAgent(model="test")
+
+        # Mock a result with no model_name in messages
+        mock_result = MagicMock()
+        mock_result.all_messages.return_value = []  # No ModelResponse
+        mock_result.usage.return_value = MagicMock(
+            input_tokens=100,
+            output_tokens=50,
+            total_tokens=150,
+            cache_read_tokens=0,
+            cache_write_tokens=0,
+            input_audio_tokens=0,
+            output_audio_tokens=0,
+            cache_audio_read_tokens=0,
+            requests=1,
+            tool_calls=0,
+            details={},
+        )
+        mock_result.output = "test output"
+        mock_result.new_messages.return_value = []
+
+        with patch.object(agent._agent, "run", new_callable=AsyncMock) as mock_run:
+            mock_run.return_value = mock_result
+            response = await agent.run("Hello")
+
+        # Should fall back to explicitly configured model
+        assert response.model == "test"
+
+    async def test_escape_hatch_without_model_returns_none_when_detection_fails(self) -> None:
+        """When using escape hatch without explicit model, should return None if detection fails."""
+        from pydantic_ai.models.test import TestModel
+
+        # Create agent via escape hatch without explicit model
+        custom_agent: Agent[None, str] = Agent(model=TestModel())
+        agent = FastroAgent(agent=custom_agent)  # No model= specified
+
+        # Mock a result with no model_name in messages
+        mock_result = MagicMock()
+        mock_result.all_messages.return_value = []  # No ModelResponse
+        mock_result.usage.return_value = MagicMock(
+            input_tokens=100,
+            output_tokens=50,
+            total_tokens=150,
+            cache_read_tokens=0,
+            cache_write_tokens=0,
+            input_audio_tokens=0,
+            output_audio_tokens=0,
+            cache_audio_read_tokens=0,
+            requests=1,
+            tool_calls=0,
+            details={},
+        )
+        mock_result.output = "test output"
+        mock_result.new_messages.return_value = []
+
+        with patch.object(agent._agent, "run", new_callable=AsyncMock) as mock_run:
+            mock_run.return_value = mock_result
+            response = await agent.run("Hello")
+
+        # Model should be None when using escape hatch without explicit model
+        assert response.model is None
+        # Cost should be 0 when model is unknown
+        assert response.cost_microcents == 0
+        # But tokens should still be tracked
+        assert response.input_tokens == 100
+        assert response.output_tokens == 50
+
+    async def test_escape_hatch_with_explicit_model_uses_fallback(self) -> None:
+        """When using escape hatch with explicit model, should use it as fallback."""
+        from pydantic_ai.models.test import TestModel
+
+        # Create agent via escape hatch WITH explicit model
+        custom_agent: Agent[None, str] = Agent(model=TestModel())
+        agent = FastroAgent(agent=custom_agent, model="gpt-4o-mini")
+
+        # Mock a result with no model_name in messages
+        mock_result = MagicMock()
+        mock_result.all_messages.return_value = []  # No ModelResponse
+        mock_result.usage.return_value = MagicMock(
+            input_tokens=100,
+            output_tokens=50,
+            total_tokens=150,
+            cache_read_tokens=0,
+            cache_write_tokens=0,
+            input_audio_tokens=0,
+            output_audio_tokens=0,
+            cache_audio_read_tokens=0,
+            requests=1,
+            tool_calls=0,
+            details={},
+        )
+        mock_result.output = "test output"
+        mock_result.new_messages.return_value = []
+
+        with patch.object(agent._agent, "run", new_callable=AsyncMock) as mock_run:
+            mock_run.return_value = mock_result
+            response = await agent.run("Hello")
+
+        # Should use the explicitly configured model as fallback
+        assert response.model == "gpt-4o-mini"

@@ -8,6 +8,7 @@ consistent response format.
 from __future__ import annotations
 
 import inspect
+import logging
 import time
 from collections.abc import AsyncGenerator, Callable
 from typing import Any, Generic, TypeVar, cast
@@ -20,7 +21,9 @@ from pydantic_ai.toolsets import AbstractToolset
 from ..pipelines.base import BaseStep, StepContext
 from ..tracing import NoOpTracer, Tracer
 from ..usage import CostCalculator
-from .schemas import AgentConfig, ChatResponse, StreamChunk
+from .schemas import DEFAULT_MODEL, AgentConfig, ChatResponse, StreamChunk
+
+logger = logging.getLogger("fastroai.agent")
 
 DepsT = TypeVar("DepsT")
 OutputT = TypeVar("OutputT")
@@ -135,6 +138,8 @@ class FastroAgent(Generic[OutputT]):
         self.toolsets = toolsets or []
         self.cost_calculator = cost_calculator or CostCalculator()
         self._output_type = output_type
+        model_explicitly_set = (config is not None and config.model != DEFAULT_MODEL) or "model" in kwargs
+        self._fallback_model: str | None = self.config.model if model_explicitly_set else None
 
         if agent is not None:
             self._agent = agent
@@ -145,6 +150,7 @@ class FastroAgent(Generic[OutputT]):
                 toolsets=self.toolsets if self.toolsets else None,
                 output_type=cast(type[OutputT], output_type or str),
             )
+            self._fallback_model = self.config.model
 
     @property
     def agent(self) -> Agent[Any, OutputT]:
@@ -345,10 +351,7 @@ class FastroAgent(Generic[OutputT]):
     ) -> ChatResponse[OutputT]:
         """Create ChatResponse from PydanticAI result."""
         usage = result.usage()
-
-        model = self.config.model
-        if hasattr(usage, "model") and usage.model:
-            model = usage.model
+        model = self._extract_model_from_result(result)
 
         input_tokens = usage.input_tokens or 0
         output_tokens = usage.output_tokens or 0
@@ -368,16 +371,19 @@ class FastroAgent(Generic[OutputT]):
         if hasattr(usage, "details") and usage.details:  # pragma: no cover
             usage_details = {k: v for k, v in usage.details.items() if isinstance(v, int)}
 
-        cost_microcents = self.cost_calculator.calculate_cost(
-            model=model,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            cache_read_tokens=cache_read_tokens,
-            cache_write_tokens=cache_write_tokens,
-            input_audio_tokens=input_audio_tokens,
-            output_audio_tokens=output_audio_tokens,
-            cache_audio_read_tokens=cache_audio_read_tokens,
-        )
+        if model is not None:
+            cost_microcents = self.cost_calculator.calculate_cost(
+                model=model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cache_read_tokens=cache_read_tokens,
+                cache_write_tokens=cache_write_tokens,
+                input_audio_tokens=input_audio_tokens,
+                output_audio_tokens=output_audio_tokens,
+                cache_audio_read_tokens=cache_audio_read_tokens,
+            )
+        else:
+            cost_microcents = 0
 
         tool_calls = self._extract_tool_calls(result)
         output: OutputT = result.output
@@ -418,10 +424,7 @@ class FastroAgent(Generic[OutputT]):
         - .new_messages() for messages
         """
         usage = stream.usage()
-
-        model = self.config.model
-        if hasattr(usage, "model") and usage.model:
-            model = usage.model
+        model = self._extract_model_from_stream(stream)
 
         input_tokens = usage.input_tokens or 0
         output_tokens = usage.output_tokens or 0
@@ -441,16 +444,19 @@ class FastroAgent(Generic[OutputT]):
         if hasattr(usage, "details") and usage.details:  # pragma: no cover
             usage_details = {k: v for k, v in usage.details.items() if isinstance(v, int)}
 
-        cost_microcents = self.cost_calculator.calculate_cost(
-            model=model,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            cache_read_tokens=cache_read_tokens,
-            cache_write_tokens=cache_write_tokens,
-            input_audio_tokens=input_audio_tokens,
-            output_audio_tokens=output_audio_tokens,
-            cache_audio_read_tokens=cache_audio_read_tokens,
-        )
+        if model is not None:
+            cost_microcents = self.cost_calculator.calculate_cost(
+                model=model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cache_read_tokens=cache_read_tokens,
+                cache_write_tokens=cache_write_tokens,
+                input_audio_tokens=input_audio_tokens,
+                output_audio_tokens=output_audio_tokens,
+                cache_audio_read_tokens=cache_audio_read_tokens,
+            )
+        else:
+            cost_microcents = 0
 
         tool_calls = self._extract_tool_calls_from_messages(stream.new_messages())
         raw_output = stream.get_output()
@@ -508,6 +514,79 @@ class FastroAgent(Generic[OutputT]):
             pass
 
         return tool_calls
+
+    def _extract_model_from_messages(self, messages: Any) -> str | None:
+        """Extract model name from the last ModelResponse in messages.
+
+        PydanticAI's ModelResponse contains model_name which is the actual
+        model that processed the request. This correctly handles FallbackModel
+        and other model wrappers.
+
+        Args:
+            messages: List of ModelMessage from result.all_messages() or similar.
+
+        Returns:
+            Model name if found, None otherwise.
+        """
+        try:
+            for msg in reversed(messages):
+                if hasattr(msg, "model_name") and msg.model_name:
+                    return cast(str, msg.model_name)
+        except Exception:
+            pass
+        return None
+
+    def _extract_model_from_result(self, result: Any) -> str | None:
+        """Extract model name from AgentRunResult.
+
+        Tries to get model from all_messages() (which includes the response),
+        falls back to configured model if detection fails.
+
+        Args:
+            result: PydanticAI AgentRunResult.
+
+        Returns:
+            Model name if detected, fallback model if configured, None otherwise.
+        """
+        try:
+            messages = result.all_messages()
+            model = self._extract_model_from_messages(messages)
+            if model:
+                return model
+        except Exception:
+            pass
+        if self._fallback_model is None:
+            logger.warning(
+                "Could not detect model from response and no explicit model configured. "
+                "Cost will not be calculated. Consider passing model= to FastroAgent."
+            )
+        return self._fallback_model
+
+    def _extract_model_from_stream(self, stream: Any) -> str | None:
+        """Extract model name from StreamedRunResult.
+
+        Tries to get model from all_messages() (which includes the response),
+        falls back to configured model if detection fails.
+
+        Args:
+            stream: PydanticAI StreamedRunResult.
+
+        Returns:
+            Model name if detected, fallback model if configured, None otherwise.
+        """
+        try:
+            messages = stream.all_messages()
+            model = self._extract_model_from_messages(messages)
+            if model:
+                return model
+        except Exception:
+            pass
+        if self._fallback_model is None:
+            logger.warning(
+                "Could not detect model from response and no explicit model configured. "
+                "Cost will not be calculated. Consider passing model= to FastroAgent."
+            )
+        return self._fallback_model
 
     def as_step(
         self,
