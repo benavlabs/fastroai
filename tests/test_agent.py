@@ -13,7 +13,6 @@ from fastroai.agent import (
     DEFAULT_MODEL,
     DEFAULT_SYSTEM_PROMPT,
     DEFAULT_TEMPERATURE,
-    DEFAULT_TIMEOUT_SECONDS,
     AgentConfig,
     ChatResponse,
     FastroAgent,
@@ -38,10 +37,6 @@ class TestAgentConfigDefaults:
         """Default temperature should be 0.7."""
         assert DEFAULT_TEMPERATURE == 0.7
 
-    def test_default_timeout(self) -> None:
-        """Default timeout should be 120 seconds."""
-        assert DEFAULT_TIMEOUT_SECONDS == 120
-
     def test_default_max_retries(self) -> None:
         """Default max retries should be 3."""
         assert DEFAULT_MAX_RETRIES == 3
@@ -60,7 +55,7 @@ class TestAgentConfig:
         assert config.model == DEFAULT_MODEL
         assert config.max_tokens == DEFAULT_MAX_TOKENS
         assert config.temperature == DEFAULT_TEMPERATURE
-        assert config.timeout_seconds == DEFAULT_TIMEOUT_SECONDS
+        assert config.timeout is None  # opt-in: defaults to None so the model client uses its own timeout
         assert config.max_retries == DEFAULT_MAX_RETRIES
         assert config.system_prompt is None
 
@@ -71,14 +66,14 @@ class TestAgentConfig:
             system_prompt="Be brief.",
             max_tokens=1000,
             temperature=0.3,
-            timeout_seconds=60,
+            timeout=60,
             max_retries=5,
         )
         assert config.model == "anthropic:claude-3-5-sonnet"
         assert config.system_prompt == "Be brief."
         assert config.max_tokens == 1000
         assert config.temperature == 0.3
-        assert config.timeout_seconds == 60
+        assert config.timeout == 60
         assert config.max_retries == 5
 
     def test_get_effective_system_prompt_with_custom(self) -> None:
@@ -106,12 +101,46 @@ class TestAgentConfig:
             AgentConfig(temperature=2.1)
 
     def test_timeout_validation(self) -> None:
-        """Timeout should be positive."""
-        with pytest.raises(ValueError):
-            AgentConfig(timeout_seconds=0)
+        """Timeout, when set, must be positive. None is the opt-out."""
+        # None is allowed (default).
+        config = AgentConfig(timeout=None)
+        assert config.timeout is None
 
         with pytest.raises(ValueError):
-            AgentConfig(timeout_seconds=-1)
+            AgentConfig(timeout=0)
+
+        with pytest.raises(ValueError):
+            AgentConfig(timeout=-1)
+
+
+class TestTimeoutForwarding:
+    """Regression tests for the timeout-forwarding bug.
+
+    Pre-fix, `FastroAgent(timeout=N)` accepted the kwarg but `_execute()` only
+    forwarded `max_tokens` and `temperature` to ModelSettings — the configured
+    timeout never reached the underlying model client. This contributed to a
+    50-minute production hang in 2026-05-06 (ref: Sapari analysis pipeline
+    fix plan). The fix forwards `self.config.timeout` to ModelSettings.timeout
+    when set, omits the key when None.
+    """
+
+    def test_timeout_forwarded_to_model_settings(self) -> None:
+        """Configured timeout must end up in the ModelSettings dict."""
+        from fastroai.agent import FastroAgent
+
+        agent = FastroAgent(model="test", timeout=42)
+        settings = agent._build_default_model_settings()
+        assert settings.get("timeout") == 42
+
+    def test_no_timeout_omits_key_from_model_settings(self) -> None:
+        """When timeout is None (default), the key must be absent so the model
+        client falls back to its own defaults rather than receiving a None
+        value that some clients treat as 'no timeout' and others as 'invalid'."""
+        from fastroai.agent import FastroAgent
+
+        agent = FastroAgent(model="test")  # timeout defaults to None
+        settings = agent._build_default_model_settings()
+        assert "timeout" not in settings
 
 
 class TestChatResponse:

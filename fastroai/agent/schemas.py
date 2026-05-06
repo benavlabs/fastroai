@@ -14,7 +14,6 @@ OutputT = TypeVar("OutputT")
 DEFAULT_MODEL = "openai:gpt-4o"
 DEFAULT_MAX_TOKENS = 4096
 DEFAULT_TEMPERATURE = 0.7
-DEFAULT_TIMEOUT_SECONDS = 120
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_SYSTEM_PROMPT = "You are a helpful AI assistant."
 
@@ -56,7 +55,18 @@ class AgentConfig(BaseModel):
         le=2.0,
         description="Sampling temperature (0.0 = deterministic, 2.0 = creative).",
     )
-    timeout_seconds: int = Field(default=DEFAULT_TIMEOUT_SECONDS, gt=0, description="Request timeout in seconds.")
+    timeout: int | None = Field(
+        default=None,
+        gt=0,
+        description=(
+            "Per-request timeout in seconds. When set, forwarded to the underlying "
+            "pydantic-ai ModelSettings.timeout, which the model client (e.g. OpenAI SDK) "
+            "uses to bound a single LLM call. None = library defaults (typically 600s "
+            "read timeout on the underlying httpx client). With max_retries > 0, the "
+            "underlying SDK may attempt up to (max_retries + 1) requests, each bounded "
+            "by this value — total wall time is therefore (max_retries + 1) × timeout."
+        ),
+    )
     max_retries: int = Field(default=DEFAULT_MAX_RETRIES, ge=0, description="Maximum retry attempts on failure.")
 
     def get_effective_system_prompt(self) -> str:
