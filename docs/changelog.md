@@ -6,6 +6,42 @@ The Changelog documents all notable changes made to FastroAI. This includes new 
 
 ---
 
+## [0.5.0] - May 6, 2026
+
+#### Fixed
+- **`FastroAgent` timeout is now actually enforced** by [@igorbenav](https://github.com/igorbenav)
+  - The `timeout` parameter on `FastroAgent` was previously stored on `AgentConfig` but never read by `_execute()`. The configured value silently never reached the underlying model client, so a single LLM call could run for the full underlying httpx read timeout (~600s) × `max_retries+1` attempts before any error surfaced.
+  - New `_build_default_model_settings()` helper forwards `self.config.timeout` into `ModelSettings.timeout`, where pydantic-ai passes it through to the model client (e.g. OpenAI SDK's `chat.completions.create(timeout=N)`).
+  - Contributed to a 50-minute production hang in a downstream worker on 2026-05-06 — a hung pydantic-ai agent call that should have hit a 300s timeout per the configured constant ran for ~30 min until the worker was manually restarted.
+
+#### Changed (Breaking)
+- **`AgentConfig.timeout_seconds` renamed to `AgentConfig.timeout`** to match pydantic-ai's `ModelSettings.timeout` and to align with what `FastroAgent(timeout=N)` callers were already passing. Code using the old name will fail with a Pydantic validation error.
+- **Default is now `None`** (opt-in), previously `120`. With `None`, no per-request timeout is forwarded and the model client's own default applies (typically 600s read on OpenAI). Code that wants the previous 120s behavior — though no such code worked correctly because the default was never enforced — should pass `timeout=120` explicitly.
+- **`DEFAULT_TIMEOUT_SECONDS` removed** from `fastroai.agent` exports. No replacement constant; choose a value at the call site.
+
+#### Migration
+
+```python
+# Before:
+from fastroai.agent import DEFAULT_TIMEOUT_SECONDS
+agent = FastroAgent(model="openai:gpt-4o", timeout_seconds=60)
+config = AgentConfig(timeout_seconds=60)
+
+# After:
+agent = FastroAgent(model="openai:gpt-4o", timeout=60)
+config = AgentConfig(timeout=60)
+```
+
+If you have a `*_TIMEOUT_SECONDS` constant that you've been passing into `FastroAgent` and trusting to bound LLM call wall time, that bound was not actually applying. Re-validate your value — you may have been over-budgeting because timeouts were getting absorbed by retries that no longer happen as silently.
+
+#### Documentation
+- Updated RELEASE.md with 0.5.0 release notes including breaking-change migration guide
+- Updated `docs/guides/fastro-agent.md` configuration reference table
+
+**Full Changelog**: https://github.com/benavlabs/fastroai/compare/v0.4.1...v0.5.0
+
+---
+
 ## [0.4.1] - Jan 25, 2026
 
 #### Fixed

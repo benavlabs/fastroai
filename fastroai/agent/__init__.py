@@ -11,7 +11,6 @@ from .schemas import (
     DEFAULT_MODEL,
     DEFAULT_SYSTEM_PROMPT,
     DEFAULT_TEMPERATURE,
-    DEFAULT_TIMEOUT_SECONDS,
     AgentConfig,
     ChatResponse,
     StreamChunk,
@@ -26,7 +25,6 @@ __all__ = [
     "DEFAULT_MODEL",
     "DEFAULT_MAX_TOKENS",
     "DEFAULT_TEMPERATURE",
-    "DEFAULT_TIMEOUT_SECONDS",
     "DEFAULT_MAX_RETRIES",
     "DEFAULT_SYSTEM_PROMPT",
 ]

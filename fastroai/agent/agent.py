@@ -270,6 +270,30 @@ class FastroAgent(Generic[OutputT]):
             ):
                 yield chunk
 
+    def _build_default_model_settings(self) -> ModelSettings:
+        """Build ModelSettings from this agent's config, used when the caller
+        does not provide its own model_settings.
+
+        Forwards the configured ``timeout`` (when set) so it actually reaches
+        the underlying model client. ``ModelSettings`` is a TypedDict with all
+        fields optional; ``timeout`` is omitted when ``self.config.timeout is
+        None`` so callers can fall back to the model client's default behavior.
+
+        Branches on the timeout because mypy doesn't support ``**dict``
+        expansion into a TypedDict — every key has to be a literal at the
+        construction site.
+        """
+        if self.config.timeout is not None:
+            return ModelSettings(
+                max_tokens=self.config.max_tokens,
+                temperature=self.config.temperature,
+                timeout=self.config.timeout,
+            )
+        return ModelSettings(
+            max_tokens=self.config.max_tokens,
+            temperature=self.config.temperature,
+        )
+
     async def _execute(
         self,
         message: str,
@@ -281,10 +305,7 @@ class FastroAgent(Generic[OutputT]):
         **kwargs: Any,
     ) -> ChatResponse[OutputT]:
         """Internal execution logic."""
-        effective_settings = model_settings or ModelSettings(
-            max_tokens=self.config.max_tokens,
-            temperature=self.config.temperature,
-        )
+        effective_settings = model_settings or self._build_default_model_settings()
 
         start_time = time.perf_counter()
 
@@ -317,10 +338,7 @@ class FastroAgent(Generic[OutputT]):
         **kwargs: Any,
     ) -> AsyncGenerator[StreamChunk[OutputT], None]:
         """Internal streaming logic."""
-        effective_settings = model_settings or ModelSettings(
-            max_tokens=self.config.max_tokens,
-            temperature=self.config.temperature,
-        )
+        effective_settings = model_settings or self._build_default_model_settings()
 
         start_time = time.perf_counter()
 

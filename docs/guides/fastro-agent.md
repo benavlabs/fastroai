@@ -67,7 +67,7 @@ agent = FastroAgent(config=config)
 | `system_prompt` | `"You are a helpful AI assistant."` | Instructions for the model |
 | `temperature` | `0.7` | Sampling temperature (0.0-2.0) |
 | `max_tokens` | `4096` | Maximum response tokens |
-| `timeout_seconds` | `120` | Request timeout |
+| `timeout` | `None` | Per-request timeout in seconds. When set, forwarded to `ModelSettings.timeout` and enforced by the underlying model client. `None` means use the client's own default (typically 600s read on OpenAI). |
 | `max_retries` | `3` | Retry attempts on failure |
 
 Model names use PydanticAI's provider prefix format: `openai:gpt-4o`, `anthropic:claude-3-5-sonnet`, `google:gemini-1.5-pro`. The prefix tells PydanticAI which API client to use.
