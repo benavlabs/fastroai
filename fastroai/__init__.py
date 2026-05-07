@@ -37,7 +37,7 @@ Pipeline Example:
 __version__ = "0.1.0"
 
 from .agent import AgentConfig, AgentStepWrapper, ChatResponse, FastroAgent, StreamChunk
-from .errors import CostBudgetExceededError, FastroAIError, PipelineValidationError
+from .errors import CostBudgetExceededError, DispatchSkippedError, ErrorCategory, FastroAIError, PipelineValidationError
 from .pipelines import (
     BasePipeline,
     BaseStep,
@@ -69,6 +69,8 @@ __all__ = [
     "FastroAIError",
     "PipelineValidationError",
     "CostBudgetExceededError",
+    "DispatchSkippedError",
+    "ErrorCategory",
     # Pipelines
     "Pipeline",
     "PipelineResult",

@@ -14,6 +14,8 @@ from fastroai.pipelines import (
     ConversationState,
     ConversationStatus,
     CostBudgetExceededError,
+    DispatchSkippedError,
+    ErrorCategory,
     FastroAIError,
     Pipeline,
     PipelineConfig,
@@ -176,6 +178,7 @@ class TestErrorHierarchy:
         assert issubclass(PipelineValidationError, FastroAIError)
         assert issubclass(StepExecutionError, FastroAIError)
         assert issubclass(CostBudgetExceededError, FastroAIError)
+        assert issubclass(DispatchSkippedError, FastroAIError)
 
     def test_step_execution_error(self) -> None:
         """StepExecutionError should have step_id and original_error."""
@@ -202,6 +205,43 @@ class TestErrorHierarchy:
         error = CostBudgetExceededError(budget=1000, actual=1500)
         assert error.step_id is None
         assert "in step" not in str(error)
+
+    def test_dispatch_skipped_is_fastroai_error(self) -> None:
+        """DispatchSkippedError subclasses FastroAIError so it's catchable as a library error."""
+        error = DispatchSkippedError("guard rejected dispatch")
+        assert isinstance(error, FastroAIError)
+        assert "guard rejected dispatch" in str(error)
+
+    def test_dispatch_skipped_subclass_is_skipped(self) -> None:
+        """User subclasses of DispatchSkippedError also satisfy isinstance(DispatchSkippedError).
+
+        The retry loop checks `except DispatchSkippedError` to short-circuit, so
+        subclass propagation must work for application-specific guards
+        (e.g. a BreakerOpenError exception that subclasses DispatchSkippedError).
+        """
+
+        class BreakerOpenError(DispatchSkippedError):
+            def __init__(self, provider: str) -> None:
+                super().__init__(f"{provider} breaker open")
+                self.provider = provider
+
+        error = BreakerOpenError("deepseek")
+        assert isinstance(error, DispatchSkippedError)
+        assert isinstance(error, FastroAIError)
+        assert error.provider == "deepseek"
+
+    def test_error_category_values(self) -> None:
+        """ErrorCategory exposes the four named categories as string values."""
+        assert ErrorCategory.TRANSIENT.value == "transient"
+        assert ErrorCategory.PERMANENT.value == "permanent"
+        assert ErrorCategory.RESOURCE_EXHAUSTION.value == "resource_exhaustion"
+        assert ErrorCategory.UNKNOWN.value == "unknown"
+
+    def test_error_category_is_str(self) -> None:
+        """StrEnum values are usable as strings (e.g. for span attributes, log fields)."""
+        assert ErrorCategory.TRANSIENT == "transient"
+        # Composable into f-strings without explicit .value:
+        assert f"category={ErrorCategory.TRANSIENT}" == "category=transient"
 
 
 # ============================================================================
