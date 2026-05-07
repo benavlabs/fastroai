@@ -56,6 +56,7 @@ class TestAgentConfig:
         assert config.max_tokens == DEFAULT_MAX_TOKENS
         assert config.temperature == DEFAULT_TEMPERATURE
         assert config.timeout is None  # opt-in: defaults to None so the model client uses its own timeout
+        assert config.timeout_name is None  # opt-in: surfaces in spans/error messages when set
         assert config.max_retries == DEFAULT_MAX_RETRIES
         assert config.system_prompt is None
 
@@ -67,6 +68,7 @@ class TestAgentConfig:
             max_tokens=1000,
             temperature=0.3,
             timeout=60,
+            timeout_name="summarize_step.dispatch",
             max_retries=5,
         )
         assert config.model == "anthropic:claude-3-5-sonnet"
@@ -74,6 +76,7 @@ class TestAgentConfig:
         assert config.max_tokens == 1000
         assert config.temperature == 0.3
         assert config.timeout == 60
+        assert config.timeout_name == "summarize_step.dispatch"
         assert config.max_retries == 5
 
     def test_get_effective_system_prompt_with_custom(self) -> None:
@@ -295,6 +298,43 @@ class TestFastroAgentInit:
         """Should expose underlying PydanticAI agent."""
         agent = FastroAgent(model="test")
         assert agent.agent is not None
+
+
+class TestFastroAgentDispatchHooks:
+    """Tests for the on_before_dispatch / on_after_dispatch hook params."""
+
+    def test_hooks_default_to_none(self) -> None:
+        """Without explicit hooks, instance attrs are None."""
+        agent = FastroAgent(model="test")
+        assert agent._on_before_dispatch is None
+        assert agent._on_after_dispatch is None
+
+    def test_hooks_stored_when_provided(self) -> None:
+        """Provided callables are stored on the instance unchanged."""
+
+        async def before() -> None:
+            return None
+
+        async def after(exc: Exception | None) -> None:
+            return None
+
+        agent = FastroAgent(
+            model="test",
+            on_before_dispatch=before,
+            on_after_dispatch=after,
+        )
+        assert agent._on_before_dispatch is before
+        assert agent._on_after_dispatch is after
+
+    def test_only_before_hook(self) -> None:
+        """Hooks are independent — providing one leaves the other None."""
+
+        async def before() -> None:
+            return None
+
+        agent = FastroAgent(model="test", on_before_dispatch=before)
+        assert agent._on_before_dispatch is before
+        assert agent._on_after_dispatch is None
 
 
 class TestFastroAgentRun:

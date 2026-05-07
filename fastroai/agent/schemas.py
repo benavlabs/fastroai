@@ -67,6 +67,16 @@ class AgentConfig(BaseModel):
             "by this value — total wall time is therefore (max_retries + 1) × timeout."
         ),
     )
+    timeout_name: str | None = Field(
+        default=None,
+        description=(
+            "Human-readable label for this timeout, surfaced in span attributes and "
+            "TimeoutError messages emitted by the retry loop. Used by observability "
+            "tooling (e.g. Logfire) to distinguish which configured timeout fired "
+            "without parsing call-site context. Has no effect on enforcement — the "
+            "actual deadline is still controlled by `timeout`."
+        ),
+    )
     max_retries: int = Field(default=DEFAULT_MAX_RETRIES, ge=0, description="Maximum retry attempts on failure.")
 
     def get_effective_system_prompt(self) -> str:
