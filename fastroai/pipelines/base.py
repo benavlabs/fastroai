@@ -362,8 +362,7 @@ class StepContext(Generic[DepsT]):
                     response = await coro
             except TimeoutError:
                 attempt_error = TimeoutError(
-                    f"Agent call timed out after {timeout}s "
-                    f"(attempt {attempt + 1}/{retries + 1})"
+                    f"Agent call timed out after {timeout}s (attempt {attempt + 1}/{retries + 1})"
                 )
             except Exception as e:
                 attempt_error = e
