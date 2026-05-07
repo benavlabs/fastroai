@@ -238,8 +238,8 @@ class TestErrorHierarchy:
         assert ErrorCategory.UNKNOWN.value == "unknown"
 
     def test_error_category_is_str(self) -> None:
-        """StrEnum values are usable as strings (e.g. for span attributes, log fields)."""
-        assert ErrorCategory.TRANSIENT == "transient"
+        """StrEnum members ARE strings (usable for span attributes, log fields)."""
+        assert isinstance(ErrorCategory.TRANSIENT, str)
         # Composable into f-strings without explicit .value:
         assert f"category={ErrorCategory.TRANSIENT}" == "category=transient"
 
