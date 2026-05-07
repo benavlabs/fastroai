@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
 from pydantic import BaseModel
 
-from ..errors import CostBudgetExceededError
+from ..errors import CostBudgetExceededError, DispatchSkippedError
 from .config import StepConfig
 from .schemas import StepUsage
 
@@ -332,22 +332,52 @@ class StepContext(Generic[DepsT]):
         timeout: float | None,
         retries: int,
     ) -> ChatResponse[OutputT]:
-        """Execute agent call with timeout and retry logic."""
+        """Execute agent call with timeout, retry logic, and dispatch hooks.
+
+        Per-attempt flow:
+        1. Fire `agent._on_before_dispatch` if set. Any exception (including
+           `DispatchSkippedError`) propagates immediately — no retry, no
+           after-hook. Use this to fail fast on circuit-breaker-open / kill-
+           switch / rate-limiter signals.
+        2. Run the agent (with timeout if configured).
+        3. Fire `agent._on_after_dispatch(exc_or_none)` if set. After-hook
+           exceptions also propagate without retry — they signal a programming
+           error or breaker-state corruption, not a transient failure.
+        4. On agent success: return. On agent failure: continue retry loop.
+        """
         last_error: Exception | None = None
         retry_delay = self._config.retry_delay
 
         for attempt in range(max(1, retries + 1)):
+            if agent._on_before_dispatch is not None:
+                await agent._on_before_dispatch()
+
+            attempt_error: Exception | None = None
+            response: ChatResponse[OutputT] | None = None
             try:
                 coro = agent.run(message=message, deps=self._deps, tracer=self._tracer)
                 if timeout:
-                    return await asyncio.wait_for(coro, timeout=timeout)
-                return await coro
+                    response = await asyncio.wait_for(coro, timeout=timeout)
+                else:
+                    response = await coro
             except TimeoutError:
-                last_error = TimeoutError(
-                    f"Agent call timed out after {timeout}s (attempt {attempt + 1}/{retries + 1})"
+                attempt_error = TimeoutError(
+                    f"Agent call timed out after {timeout}s "
+                    f"(attempt {attempt + 1}/{retries + 1})"
                 )
             except Exception as e:
-                last_error = e
+                attempt_error = e
+
+            if agent._on_after_dispatch is not None:
+                await agent._on_after_dispatch(attempt_error)
+
+            if attempt_error is None:
+                assert response is not None
+                return response
+
+            last_error = attempt_error
+            if isinstance(attempt_error, DispatchSkippedError):
+                raise attempt_error
 
             if attempt < retries:
                 await asyncio.sleep(retry_delay * (2**attempt))
