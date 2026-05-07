@@ -87,7 +87,8 @@ FastroAI uses a structured exception hierarchy:
 FastroAIError                    # Base for all FastroAI errors
 ├── PipelineValidationError      # Invalid pipeline config
 ├── StepExecutionError           # Step failed during execution
-└── CostBudgetExceededError      # Budget limit hit
+├── CostBudgetExceededError      # Budget limit hit
+└── DispatchSkippedError         # Short-circuit a dispatch (breaker open, kill switch)
 ```
 
 Catch `FastroAIError` to handle all library-specific errors:
@@ -124,6 +125,32 @@ except CostBudgetExceededError as e:
     print(f"Actual: {e.actual_microcents}")
     print(f"Step: {e.step_id}")
 ```
+
+## Dispatch Hooks
+
+Some failures are best handled before they happen. If your downstream provider is rate-limiting you, retrying ten times in a row just makes it worse. If a circuit breaker has tripped, the next request shouldn't even be attempted. `FastroAgent` accepts two async callbacks that fire **per attempt** inside the retry loop:
+
+```python
+async def before():
+    if breaker.is_open():
+        raise DispatchSkippedError("breaker open")
+
+async def after(exc: Exception | None):
+    if exc is None:
+        breaker.record_success()
+    else:
+        breaker.record_failure(categorize(exc))
+
+agent = FastroAgent(
+    model="openai:gpt-4o",
+    on_before_dispatch=before,
+    on_after_dispatch=after,
+)
+```
+
+Raising `DispatchSkippedError` from `on_before_dispatch` short-circuits the dispatch entirely — the retry loop propagates the error without retrying, and `on_after_dispatch` is not called. Use it for guards that should fail fast: circuit breakers, kill switches, rate limiters that have already exhausted budget. Pre-flight rejections like `CostBudgetExceededError` skip both hooks (they raise before the dispatch loop is entered).
+
+For categorizing exceptions inside `on_after_dispatch`, the library exports `ErrorCategory` — a StrEnum with `TRANSIENT`, `PERMANENT`, `RESOURCE_EXHAUSTION`, and `UNKNOWN`. Callers map exceptions themselves; the library doesn't auto-categorize.
 
 ## Designing for Failure
 

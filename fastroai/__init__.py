@@ -34,7 +34,8 @@ Pipeline Example:
     print(result.output)
 """
 
-__version__ = "0.1.0"
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _version
 
 from .agent import AgentConfig, AgentStepWrapper, ChatResponse, FastroAgent, StreamChunk
 from .errors import CostBudgetExceededError, DispatchSkippedError, ErrorCategory, FastroAIError, PipelineValidationError
@@ -56,6 +57,11 @@ from .pipelines import (
 from .tools import FunctionToolsetBase, SafeToolset, safe_tool
 from .tracing import LogfireTracer, NoOpTracer, SimpleTracer, Tracer
 from .usage import CostCalculator
+
+try:
+    __version__ = _version("fastroai")
+except PackageNotFoundError:
+    __version__ = "0.0.0+unknown"
 
 __all__ = [
     "__version__",

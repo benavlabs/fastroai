@@ -94,6 +94,8 @@ from fastroai import (
     FastroAIError,
     PipelineValidationError,
     CostBudgetExceededError,
+    DispatchSkippedError,
+    ErrorCategory,
 )
 ```
 
@@ -105,8 +107,11 @@ All FastroAI exceptions inherit from `FastroAIError`, so you can catch all libra
 FastroAIError                    # Base for all FastroAI errors
 ├── PipelineValidationError      # Invalid pipeline configuration
 ├── StepExecutionError           # Step failed during execution
-└── CostBudgetExceededError      # Cost budget exceeded
+├── CostBudgetExceededError      # Cost budget exceeded
+└── DispatchSkippedError         # Raised from on_before_dispatch to short-circuit (no retry)
 ```
+
+`ErrorCategory` (StrEnum: `TRANSIENT`, `PERMANENT`, `RESOURCE_EXHAUSTION`, `UNKNOWN`) is provided for callers that want to categorize exceptions inside `on_after_dispatch` (e.g., a circuit breaker that only counts transient failures toward its open threshold). The library doesn't auto-categorize.
 
 ```python
 try:

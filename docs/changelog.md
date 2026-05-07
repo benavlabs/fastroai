@@ -6,6 +6,30 @@ The Changelog documents all notable changes made to FastroAI. This includes new 
 
 ---
 
+## [0.6.0] - May 7, 2026
+
+#### Added
+- **Dispatch hooks on `FastroAgent`** by [@igorbenav](https://github.com/igorbenav)
+  - `on_before_dispatch` — async callback fired before each `agent.run()` attempt inside the retry loop. Raising `DispatchSkippedError` (or a subclass) short-circuits the dispatch — the retry loop propagates the error without retrying, and `on_after_dispatch` is not called.
+  - `on_after_dispatch` — async callback fired after each attempt with the exception that occurred, or `None` on success. Use for circuit-breaker recording, retry-budget tracking, alerting.
+  - Hooks fire **per attempt** (every retry triggers them again), letting downstream guards see each individual try rather than only the final outcome.
+  - Pre-flight rejections like `CostBudgetExceededError` skip both hooks — they raise before the dispatch loop is entered.
+
+- **`DispatchSkippedError`** exception — subclass of `FastroAIError`. Raise from `on_before_dispatch` to fail fast on circuit-breaker-open / kill-switch / rate-limit signals without burning a retry slot.
+
+- **`ErrorCategory`** StrEnum (`TRANSIENT`, `PERMANENT`, `RESOURCE_EXHAUSTION`, `UNKNOWN`) — provided for callers that want to categorize exceptions inside `on_after_dispatch` (e.g., a circuit breaker that only counts transient failures toward its open threshold). The library doesn't auto-categorize; callers map exceptions themselves.
+
+- **`AgentConfig.timeout_name`** — optional human-readable label for the configured timeout, surfaced in span attributes and `TimeoutError` messages emitted by the retry loop. Has no effect on enforcement; observability tooling (e.g. Logfire) uses it to distinguish which configured timeout fired without parsing call-site context.
+
+#### Documentation
+- Updated `docs/learn/6-when-things-go-wrong.md` with a Dispatch Hooks section showing the breaker pattern.
+- Updated error-hierarchy diagrams in `docs/api/index.md`, `docs/learn/6-when-things-go-wrong.md`, and `CLAUDE.md` to include `DispatchSkippedError`.
+- Updated `docs/guides/fastro-agent.md` configuration reference table with `timeout_name`, `on_before_dispatch`, `on_after_dispatch`.
+
+**Full Changelog**: https://github.com/benavlabs/fastroai/compare/v0.5.0...v0.6.0
+
+---
+
 ## [0.5.0] - May 6, 2026
 
 #### Fixed
