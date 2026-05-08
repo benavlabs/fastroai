@@ -14,6 +14,8 @@ from fastroai.pipelines import (
     ConversationState,
     ConversationStatus,
     CostBudgetExceededError,
+    DispatchSkippedError,
+    ErrorCategory,
     FastroAIError,
     Pipeline,
     PipelineConfig,
@@ -176,6 +178,7 @@ class TestErrorHierarchy:
         assert issubclass(PipelineValidationError, FastroAIError)
         assert issubclass(StepExecutionError, FastroAIError)
         assert issubclass(CostBudgetExceededError, FastroAIError)
+        assert issubclass(DispatchSkippedError, FastroAIError)
 
     def test_step_execution_error(self) -> None:
         """StepExecutionError should have step_id and original_error."""
@@ -202,6 +205,43 @@ class TestErrorHierarchy:
         error = CostBudgetExceededError(budget=1000, actual=1500)
         assert error.step_id is None
         assert "in step" not in str(error)
+
+    def test_dispatch_skipped_is_fastroai_error(self) -> None:
+        """DispatchSkippedError subclasses FastroAIError so it's catchable as a library error."""
+        error = DispatchSkippedError("guard rejected dispatch")
+        assert isinstance(error, FastroAIError)
+        assert "guard rejected dispatch" in str(error)
+
+    def test_dispatch_skipped_subclass_is_skipped(self) -> None:
+        """User subclasses of DispatchSkippedError also satisfy isinstance(DispatchSkippedError).
+
+        The retry loop checks `except DispatchSkippedError` to short-circuit, so
+        subclass propagation must work for application-specific guards
+        (e.g. a BreakerOpenError exception that subclasses DispatchSkippedError).
+        """
+
+        class BreakerOpenError(DispatchSkippedError):
+            def __init__(self, provider: str) -> None:
+                super().__init__(f"{provider} breaker open")
+                self.provider = provider
+
+        error = BreakerOpenError("deepseek")
+        assert isinstance(error, DispatchSkippedError)
+        assert isinstance(error, FastroAIError)
+        assert error.provider == "deepseek"
+
+    def test_error_category_values(self) -> None:
+        """ErrorCategory exposes the four named categories as string values."""
+        assert ErrorCategory.TRANSIENT.value == "transient"
+        assert ErrorCategory.PERMANENT.value == "permanent"
+        assert ErrorCategory.RESOURCE_EXHAUSTION.value == "resource_exhaustion"
+        assert ErrorCategory.UNKNOWN.value == "unknown"
+
+    def test_error_category_is_str(self) -> None:
+        """StrEnum members ARE strings (usable for span attributes, log fields)."""
+        assert isinstance(ErrorCategory.TRANSIENT, str)
+        # Composable into f-strings without explicit .value:
+        assert f"category={ErrorCategory.TRANSIENT}" == "category=transient"
 
 
 # ============================================================================
@@ -612,6 +652,259 @@ class TestStepContext:
 
         assert result.output == "Result"
         assert call_count == 2  # 1 initial + 1 retry
+
+
+# ============================================================================
+# Dispatch Hooks Tests
+# ============================================================================
+
+
+class TestDispatchHooks:
+    """Tests for on_before_dispatch / on_after_dispatch wiring in the retry loop."""
+
+    @staticmethod
+    def _mock_response(cost: int = 100) -> ChatResponse:
+        return ChatResponse(
+            output="ok",
+            content="ok",
+            model="test",
+            input_tokens=10,
+            output_tokens=5,
+            total_tokens=15,
+            cost_microcents=cost,
+            processing_time_ms=10,
+        )
+
+    @staticmethod
+    def _ctx(config: StepConfig | None = None) -> StepContext:
+        return StepContext(
+            step_id="test",
+            inputs={},
+            deps=None,
+            step_outputs={},
+            config=config or StepConfig(),
+        )
+
+    async def test_before_hook_fires_before_dispatch_on_success(self) -> None:
+        """on_before_dispatch fires once, then agent.run, then on_after_dispatch(None)."""
+        events: list[str] = []
+
+        async def before() -> None:
+            events.append("before")
+
+        async def after(exc: Exception | None) -> None:
+            events.append(f"after:{exc}")
+
+        agent = FastroAgent(
+            model="test",
+            on_before_dispatch=before,
+            on_after_dispatch=after,
+        )
+
+        async def fake_run(*_args, **_kwargs) -> ChatResponse:
+            events.append("dispatch")
+            return self._mock_response()
+
+        with patch.object(agent, "run", side_effect=fake_run):
+            await self._ctx().run(agent, "hello")
+
+        assert events == ["before", "dispatch", "after:None"]
+
+    async def test_after_hook_receives_exception_on_failure(self) -> None:
+        """When agent.run raises, after-hook receives the exception."""
+        received: list[Exception | None] = []
+
+        async def after(exc: Exception | None) -> None:
+            received.append(exc)
+
+        agent = FastroAgent(model="test", on_after_dispatch=after)
+
+        async def boom(*_args, **_kwargs) -> ChatResponse:
+            raise RuntimeError("blew up")
+
+        ctx = self._ctx(StepConfig(retries=0))
+        with patch.object(agent, "run", side_effect=boom), pytest.raises(RuntimeError, match="blew up"):
+            await ctx.run(agent, "hello")
+
+        assert len(received) == 1
+        assert isinstance(received[0], RuntimeError)
+        assert str(received[0]) == "blew up"
+
+    async def test_hooks_fire_per_attempt_during_retries(self) -> None:
+        """Each retry attempt fires both hooks. 1 initial + 2 retries = 3 of each."""
+        before_count = 0
+        after_count = 0
+
+        async def before() -> None:
+            nonlocal before_count
+            before_count += 1
+
+        async def after(_exc: Exception | None) -> None:
+            nonlocal after_count
+            after_count += 1
+
+        agent = FastroAgent(
+            model="test",
+            on_before_dispatch=before,
+            on_after_dispatch=after,
+        )
+
+        call_count = 0
+
+        async def flaky(*_args, **_kwargs) -> ChatResponse:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise RuntimeError("transient")
+            return self._mock_response()
+
+        ctx = self._ctx(StepConfig(retries=2, retry_delay=0.0))
+        with patch.object(agent, "run", side_effect=flaky):
+            await ctx.run(agent, "hello")
+
+        assert call_count == 3
+        assert before_count == 3
+        assert after_count == 3
+
+    async def test_dispatch_skipped_from_before_hook_propagates_without_retry(self) -> None:
+        """DispatchSkippedError from on_before_dispatch propagates immediately, no retry."""
+        before_count = 0
+        after_count = 0
+
+        async def before() -> None:
+            nonlocal before_count
+            before_count += 1
+            raise DispatchSkippedError("breaker open")
+
+        async def after(_exc: Exception | None) -> None:
+            nonlocal after_count
+            after_count += 1
+
+        agent = FastroAgent(
+            model="test",
+            on_before_dispatch=before,
+            on_after_dispatch=after,
+        )
+
+        ctx = self._ctx(StepConfig(retries=3, retry_delay=0.0))
+        run_mock = AsyncMock()
+        with patch.object(agent, "run", new=run_mock), pytest.raises(DispatchSkippedError, match="breaker open"):
+            await ctx.run(agent, "hello")
+
+        assert before_count == 1  # not retried
+        assert after_count == 0  # never reached
+        run_mock.assert_not_called()  # agent never dispatched
+
+    async def test_dispatch_skipped_subclass_propagates_without_retry(self) -> None:
+        """DispatchSkippedError subclasses also short-circuit (e.g., domain breaker types)."""
+
+        class BreakerOpenError(DispatchSkippedError):
+            pass
+
+        async def before() -> None:
+            raise BreakerOpenError("specific breaker")
+
+        agent = FastroAgent(model="test", on_before_dispatch=before)
+
+        ctx = self._ctx(StepConfig(retries=3, retry_delay=0.0))
+        with patch.object(agent, "run", new=AsyncMock()), pytest.raises(BreakerOpenError, match="specific breaker"):
+            await ctx.run(agent, "hello")
+
+    async def test_dispatch_skipped_from_agent_run_does_not_retry(self) -> None:
+        """DispatchSkippedError raised from agent.run still propagates without retry, but after-hook fires."""
+        received: list[Exception | None] = []
+
+        async def after(exc: Exception | None) -> None:
+            received.append(exc)
+
+        agent = FastroAgent(model="test", on_after_dispatch=after)
+
+        async def skipped(*_args, **_kwargs) -> ChatResponse:
+            raise DispatchSkippedError("inline skip")
+
+        ctx = self._ctx(StepConfig(retries=3, retry_delay=0.0))
+        with patch.object(agent, "run", side_effect=skipped), pytest.raises(DispatchSkippedError, match="inline skip"):
+            await ctx.run(agent, "hello")
+
+        assert len(received) == 1  # after-hook fired exactly once
+        assert isinstance(received[0], DispatchSkippedError)
+
+    async def test_cost_budget_rejection_does_not_fire_hooks(self) -> None:
+        """Pre-flight CostBudgetExceededError rejects before _execute_with_config — no hooks fire."""
+        before_count = 0
+        after_count = 0
+
+        async def before() -> None:
+            nonlocal before_count
+            before_count += 1
+
+        async def after(_exc: Exception | None) -> None:
+            nonlocal after_count
+            after_count += 1
+
+        agent = FastroAgent(
+            model="test",
+            on_before_dispatch=before,
+            on_after_dispatch=after,
+        )
+
+        # Budget is 50; first call costs 100, putting usage over budget.
+        ctx = self._ctx(StepConfig(cost_budget=50))
+        with patch.object(agent, "run", new_callable=AsyncMock) as mock_run:
+            mock_run.return_value = self._mock_response(cost=100)
+            await ctx.run(agent, "first")  # succeeds, usage now 100
+
+            # Second call: pre-flight budget check rejects before dispatch
+            with pytest.raises(CostBudgetExceededError):
+                await ctx.run(agent, "second")
+
+        # Hooks fired exactly once (for the first, successful dispatch)
+        assert before_count == 1
+        assert after_count == 1
+
+    async def test_after_hook_receives_timeout_error(self) -> None:
+        """When the timeout fires, after-hook receives the wrapped TimeoutError."""
+        received: list[Exception | None] = []
+
+        async def after(exc: Exception | None) -> None:
+            received.append(exc)
+
+        agent = FastroAgent(model="test", on_after_dispatch=after)
+
+        async def slow(*_args, **_kwargs) -> ChatResponse:
+            await asyncio.sleep(1.0)
+            return self._mock_response()
+
+        ctx = self._ctx(StepConfig(timeout=0.05, retries=0))
+        with patch.object(agent, "run", side_effect=slow), pytest.raises(TimeoutError):
+            await ctx.run(agent, "hello")
+
+        assert len(received) == 1
+        assert isinstance(received[0], TimeoutError)
+
+    async def test_after_hook_error_propagates_without_retry(self) -> None:
+        """If after-hook itself raises, that exception propagates without further retries."""
+        agent_call_count = 0
+        after_call_count = 0
+
+        async def after(_exc: Exception | None) -> None:
+            nonlocal after_call_count
+            after_call_count += 1
+            raise RuntimeError("after-hook bug")
+
+        agent = FastroAgent(model="test", on_after_dispatch=after)
+
+        async def succeeds(*_args, **_kwargs) -> ChatResponse:
+            nonlocal agent_call_count
+            agent_call_count += 1
+            return self._mock_response()
+
+        ctx = self._ctx(StepConfig(retries=3, retry_delay=0.0))
+        with patch.object(agent, "run", side_effect=succeeds), pytest.raises(RuntimeError, match="after-hook bug"):
+            await ctx.run(agent, "hello")
+
+        assert agent_call_count == 1  # not retried after after-hook error
+        assert after_call_count == 1
 
 
 # ============================================================================

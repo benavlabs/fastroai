@@ -10,7 +10,7 @@ from __future__ import annotations
 import inspect
 import logging
 import time
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import Any, Generic, TypeVar, cast
 
 from pydantic_ai import Agent
@@ -96,6 +96,8 @@ class FastroAgent(Generic[OutputT]):
         output_type: type[OutputT] | None = None,
         toolsets: list[AbstractToolset] | None = None,
         cost_calculator: CostCalculator | None = None,
+        on_before_dispatch: Callable[[], Awaitable[None]] | None = None,
+        on_after_dispatch: Callable[[Exception | None], Awaitable[None]] | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize FastroAgent.
@@ -107,8 +109,23 @@ class FastroAgent(Generic[OutputT]):
             output_type: Pydantic model for structured output. Defaults to str.
             toolsets: Tool sets available to the agent.
             cost_calculator: Cost calculator. Default uses standard pricing.
+            on_before_dispatch: Optional async callback fired immediately before
+                each `agent.run()` attempt inside the StepContext retry loop.
+                Raise `DispatchSkippedError` (or a subclass) to short-circuit
+                the dispatch — the retry loop propagates that exception without
+                retrying. Use this for guards that should fail fast: circuit
+                breakers, rate limiters, kill switches. Fires per attempt
+                (every retry triggers the hook again).
+            on_after_dispatch: Optional async callback fired immediately after
+                each `agent.run()` attempt completes. Receives the exception
+                that was raised, or `None` on success. Use this for outcome
+                signaling: breaker recording, retry-budget tracking, alerting.
+                Fires per attempt (every retry triggers the hook again).
+                Does NOT fire when `on_before_dispatch` raises (that
+                short-circuits dispatch entirely) or when a pre-flight guard
+                like `CostBudgetExceededError` rejects before dispatch.
             **kwargs: Passed to AgentConfig if config is None.
-                     Common: model, system_prompt, temperature, max_tokens.
+                     Common: model, system_prompt, temperature, max_tokens, timeout, timeout_name.
 
         Examples:
             ```python
@@ -132,12 +149,32 @@ class FastroAgent(Generic[OutputT]):
             from pydantic_ai import Agent
             pydantic_agent = Agent(model="gpt-4o", output_type=MyType)
             agent = FastroAgent(agent=pydantic_agent)
+
+            # With dispatch hooks for circuit-breaker integration
+            async def before():
+                await breaker.check()  # may raise DispatchSkippedError subclass
+
+            async def after(exc):
+                if exc is None:
+                    await breaker.record_success()
+                else:
+                    await breaker.record_failure(categorize(exc))
+
+            agent = FastroAgent(
+                model="gpt-4o",
+                timeout=300,
+                timeout_name="my_step.dispatch",
+                on_before_dispatch=before,
+                on_after_dispatch=after,
+            )
             ```
         """
         self.config = config or AgentConfig(**kwargs)
         self.toolsets = toolsets or []
         self.cost_calculator = cost_calculator or CostCalculator()
         self._output_type = output_type
+        self._on_before_dispatch = on_before_dispatch
+        self._on_after_dispatch = on_after_dispatch
         model_explicitly_set = (config is not None and config.model != DEFAULT_MODEL) or "model" in kwargs
         self._fallback_model: str | None = self.config.model if model_explicitly_set else None
 

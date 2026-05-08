@@ -68,7 +68,10 @@ agent = FastroAgent(config=config)
 | `temperature` | `0.7` | Sampling temperature (0.0-2.0) |
 | `max_tokens` | `4096` | Maximum response tokens |
 | `timeout` | `None` | Per-request timeout in seconds. When set, forwarded to `ModelSettings.timeout` and enforced by the underlying model client. `None` means use the client's own default (typically 600s read on OpenAI). |
+| `timeout_name` | `None` | Human-readable label for this timeout, surfaced in span attributes and `TimeoutError` messages emitted by the retry loop. Has no effect on enforcement — observability only. |
 | `max_retries` | `3` | Retry attempts on failure |
+| `on_before_dispatch` | `None` | Async callback fired before each `agent.run()` attempt inside the retry loop. Raise `DispatchSkippedError` to short-circuit (no retry, no `on_after_dispatch`). Use for circuit breakers, kill switches, rate limiters. Lives on `FastroAgent`, not `AgentConfig`. |
+| `on_after_dispatch` | `None` | Async callback fired after each attempt with the exception (or `None` on success). Use for breaker recording, retry-budget tracking. Does not fire on pre-flight rejections like `CostBudgetExceededError`. Lives on `FastroAgent`, not `AgentConfig`. |
 
 Model names use PydanticAI's provider prefix format: `openai:gpt-4o`, `anthropic:claude-3-5-sonnet`, `google:gemini-1.5-pro`. The prefix tells PydanticAI which API client to use.
 

@@ -26,7 +26,13 @@ Example:
     print(result.output)  # "POSITIVE"
 """
 
-from ..errors import CostBudgetExceededError, FastroAIError, PipelineValidationError
+from ..errors import (
+    CostBudgetExceededError,
+    DispatchSkippedError,
+    ErrorCategory,
+    FastroAIError,
+    PipelineValidationError,
+)
 from .base import BaseStep, ConversationState, ConversationStatus, StepContext
 from .config import PipelineConfig, StepConfig
 from .decorators import step
@@ -51,6 +57,8 @@ __all__ = [
     "PipelineValidationError",
     "StepExecutionError",
     "CostBudgetExceededError",
+    "DispatchSkippedError",
+    "ErrorCategory",
     # Pipeline
     "Pipeline",
     "PipelineResult",
