@@ -788,6 +788,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#dispatch-hooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dispatch Hooks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#designing-for-failure" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1462,6 +1473,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#dispatch-hooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dispatch Hooks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#designing-for-failure" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1590,7 +1612,8 @@
 <div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">FastroAIError</span>                    <span class="c1"># Base for all FastroAI errors</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="err">├──</span> <span class="n">PipelineValidationError</span>      <span class="c1"># Invalid pipeline config</span>
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="err">├──</span> <span class="n">StepExecutionError</span>           <span class="c1"># Step failed during execution</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="err">└──</span> <span class="n">CostBudgetExceededError</span>      <span class="c1"># Budget limit hit</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="err">├──</span> <span class="n">CostBudgetExceededError</span>      <span class="c1"># Budget limit hit</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="err">└──</span> <span class="n">DispatchSkippedError</span>         <span class="c1"># Short-circuit a dispatch (breaker open, kill switch)</span>
 </span></code></pre></div>
 <p>Catch <code>FastroAIError</code> to handle all library-specific errors:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fastroai</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastroAIError</span>
@@ -1618,6 +1641,26 @@
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Actual: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">actual_microcents</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Step: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">step_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </span></code></pre></div>
+<h2 id="dispatch-hooks">Dispatch Hooks<a class="headerlink" href="#dispatch-hooks" title="Permanent link">&para;</a></h2>
+<p>Some failures are best handled before they happen. If your downstream provider is rate-limiting you, retrying ten times in a row just makes it worse. If a circuit breaker has tripped, the next request shouldn't even be attempted. <code>FastroAgent</code> accepts two async callbacks that fire <strong>per attempt</strong> inside the retry loop:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">before</span><span class="p">():</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="k">if</span> <span class="n">breaker</span><span class="o">.</span><span class="n">is_open</span><span class="p">():</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>        <span class="k">raise</span> <span class="n">DispatchSkippedError</span><span class="p">(</span><span class="s2">&quot;breaker open&quot;</span><span class="p">)</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">after</span><span class="p">(</span><span class="n">exc</span><span class="p">:</span> <span class="ne">Exception</span> <span class="o">|</span> <span class="kc">None</span><span class="p">):</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="k">if</span> <span class="n">exc</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>        <span class="n">breaker</span><span class="o">.</span><span class="n">record_success</span><span class="p">()</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    <span class="k">else</span><span class="p">:</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>        <span class="n">breaker</span><span class="o">.</span><span class="n">record_failure</span><span class="p">(</span><span class="n">categorize</span><span class="p">(</span><span class="n">exc</span><span class="p">))</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>
+</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="n">agent</span> <span class="o">=</span> <span class="n">FastroAgent</span><span class="p">(</span>
+</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;openai:gpt-4o&quot;</span><span class="p">,</span>
+</span><span id="__span-8-13"><a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>    <span class="n">on_before_dispatch</span><span class="o">=</span><span class="n">before</span><span class="p">,</span>
+</span><span id="__span-8-14"><a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>    <span class="n">on_after_dispatch</span><span class="o">=</span><span class="n">after</span><span class="p">,</span>
+</span><span id="__span-8-15"><a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="p">)</span>
+</span></code></pre></div>
+<p>Raising <code>DispatchSkippedError</code> from <code>on_before_dispatch</code> short-circuits the dispatch entirely — the retry loop propagates the error without retrying, and <code>on_after_dispatch</code> is not called. Use it for guards that should fail fast: circuit breakers, kill switches, rate limiters that have already exhausted budget. Pre-flight rejections like <code>CostBudgetExceededError</code> skip both hooks (they raise before the dispatch loop is entered).</p>
+<p>For categorizing exceptions inside <code>on_after_dispatch</code>, the library exports <code>ErrorCategory</code> — a StrEnum with <code>TRANSIENT</code>, <code>PERMANENT</code>, <code>RESOURCE_EXHAUSTION</code>, and <code>UNKNOWN</code>. Callers map exceptions themselves; the library doesn't auto-categorize.</p>
 <h2 id="designing-for-failure">Designing for Failure<a class="headerlink" href="#designing-for-failure" title="Permanent link">&para;</a></h2>
 <p>The goal isn't preventing all failures - it's ensuring failures don't cascade.</p>
 <p>Configuration errors should fail fast. <code>PipelineValidationError</code> raises at construction time, not runtime - invalid dependencies, missing steps, circular references are caught before you waste tokens.</p>

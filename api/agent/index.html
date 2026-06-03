@@ -2005,7 +2005,7 @@ Callers load history from their storage and pass it to run().</p>
 
 
 <h3 id="fastroai.agent.FastroAgent.__init__" class="doc doc-heading">
-            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">agent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">toolsets</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cost_calculator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">agent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">toolsets</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cost_calculator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">on_before_dispatch</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">on_after_dispatch</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
 
 <a href="#fastroai.agent.FastroAgent.__init__" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -2109,6 +2109,51 @@ Callers load history from their storage and pass it to run().</p>
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>on_before_dispatch</code>
+            </td>
+            <td>
+                  <code><span title="collections.abc.Callable">Callable</span>[[], <span title="collections.abc.Awaitable">Awaitable</span>[None]] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional async callback fired immediately before
+each <code>agent.run()</code> attempt inside the StepContext retry loop.
+Raise <code>DispatchSkippedError</code> (or a subclass) to short-circuit
+the dispatch — the retry loop propagates that exception without
+retrying. Use this for guards that should fail fast: circuit
+breakers, rate limiters, kill switches. Fires per attempt
+(every retry triggers the hook again).</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>on_after_dispatch</code>
+            </td>
+            <td>
+                  <code><span title="collections.abc.Callable">Callable</span>[[<span title="Exception">Exception</span> | None], <span title="collections.abc.Awaitable">Awaitable</span>[None]] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional async callback fired immediately after
+each <code>agent.run()</code> attempt completes. Receives the exception
+that was raised, or <code>None</code> on success. Use this for outcome
+signaling: breaker recording, retry-budget tracking, alerting.
+Fires per attempt (every retry triggers the hook again).
+Does NOT fire when <code>on_before_dispatch</code> raises (that
+short-circuits dispatch entirely) or when a pre-flight guard
+like <code>CostBudgetExceededError</code> rejects before dispatch.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>**kwargs</code>
             </td>
             <td>
@@ -2117,7 +2162,7 @@ Callers load history from their storage and pass it to run().</p>
             <td>
               <div class="doc-md-description">
                 <p>Passed to AgentConfig if config is None.
-     Common: model, system_prompt, temperature, max_tokens.</p>
+     Common: model, system_prompt, temperature, max_tokens, timeout, timeout_name.</p>
               </div>
             </td>
             <td>
@@ -2149,6 +2194,24 @@ Callers load history from their storage and pass it to run().</p>
 </span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pydantic_ai</span><span class="w"> </span><span class="kn">import</span> <span class="n">Agent</span>
 </span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="n">pydantic_agent</span> <span class="o">=</span> <span class="n">Agent</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">,</span> <span class="n">output_type</span><span class="o">=</span><span class="n">MyType</span><span class="p">)</span>
 </span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="n">agent</span> <span class="o">=</span> <span class="n">FastroAgent</span><span class="p">(</span><span class="n">agent</span><span class="o">=</span><span class="n">pydantic_agent</span><span class="p">)</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="c1"># With dispatch hooks for circuit-breaker integration</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">before</span><span class="p">():</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    <span class="k">await</span> <span class="n">breaker</span><span class="o">.</span><span class="n">check</span><span class="p">()</span>  <span class="c1"># may raise DispatchSkippedError subclass</span>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">after</span><span class="p">(</span><span class="n">exc</span><span class="p">):</span>
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>    <span class="k">if</span> <span class="n">exc</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>        <span class="k">await</span> <span class="n">breaker</span><span class="o">.</span><span class="n">record_success</span><span class="p">()</span>
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>    <span class="k">else</span><span class="p">:</span>
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>        <span class="k">await</span> <span class="n">breaker</span><span class="o">.</span><span class="n">record_failure</span><span class="p">(</span><span class="n">categorize</span><span class="p">(</span><span class="n">exc</span><span class="p">))</span>
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a><span class="n">agent</span> <span class="o">=</span> <span class="n">FastroAgent</span><span class="p">(</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o&quot;</span><span class="p">,</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>    <span class="n">timeout</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>    <span class="n">timeout_name</span><span class="o">=</span><span class="s2">&quot;my_step.dispatch&quot;</span><span class="p">,</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>    <span class="n">on_before_dispatch</span><span class="o">=</span><span class="n">before</span><span class="p">,</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>    <span class="n">on_after_dispatch</span><span class="o">=</span><span class="n">after</span><span class="p">,</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a><span class="p">)</span>
 </span></code></pre></div>
 
 

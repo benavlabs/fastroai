@@ -1760,9 +1760,24 @@
 <td>Per-request timeout in seconds. When set, forwarded to <code>ModelSettings.timeout</code> and enforced by the underlying model client. <code>None</code> means use the client's own default (typically 600s read on OpenAI).</td>
 </tr>
 <tr>
+<td><code>timeout_name</code></td>
+<td><code>None</code></td>
+<td>Human-readable label for this timeout, surfaced in span attributes and <code>TimeoutError</code> messages emitted by the retry loop. Has no effect on enforcement — observability only.</td>
+</tr>
+<tr>
 <td><code>max_retries</code></td>
 <td><code>3</code></td>
 <td>Retry attempts on failure</td>
+</tr>
+<tr>
+<td><code>on_before_dispatch</code></td>
+<td><code>None</code></td>
+<td>Async callback fired before each <code>agent.run()</code> attempt inside the retry loop. Raise <code>DispatchSkippedError</code> to short-circuit (no retry, no <code>on_after_dispatch</code>). Use for circuit breakers, kill switches, rate limiters. Lives on <code>FastroAgent</code>, not <code>AgentConfig</code>.</td>
+</tr>
+<tr>
+<td><code>on_after_dispatch</code></td>
+<td><code>None</code></td>
+<td>Async callback fired after each attempt with the exception (or <code>None</code> on success). Use for breaker recording, retry-budget tracking. Does not fire on pre-flight rejections like <code>CostBudgetExceededError</code>. Lives on <code>FastroAgent</code>, not <code>AgentConfig</code>.</td>
 </tr>
 </tbody>
 </table>
