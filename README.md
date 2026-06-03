@@ -121,6 +121,17 @@ If the API times out, the AI receives an error message and can respond gracefull
 
 Looking for a complete AI SaaS starter? Check out [FastroAI Template](https://fastro.ai): authentication, payments, background tasks, and more built on top of this library.
 
+<p align="center">
+  <a href="https://fastro.ai">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/benavlabs/fastroai/blob/main/docs/assets/fastroai-card-dark.png?raw=true">
+      <img src="https://github.com/benavlabs/fastroai/blob/main/docs/assets/fastroai-card-light.png?raw=true" alt="FastroAI Template - the complete FastAPI SaaS template: auth, Stripe payments, entitlements, email, frontend and AI" width="100%">
+    </picture>
+  </a>
+</p>
+
+<p align="center"><b><a href="https://fastro.ai">Ship your SaaS faster with FastroAI →</a></b></p>
+
 ## Support
 
 - **Questions & Discussion**: [Discord](https://discord.com/invite/TEmPs22gqB)
