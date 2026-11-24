@@ -65,9 +65,12 @@ jobs:
 
       - name: Report versions
         if: always()
+        env:
+          CELL: compat (${{ matrix.python-version }}, ${{ matrix.pydantic-ai.name }})
         run: |
           uv run --no-sync python - >> "$GITHUB_STEP_SUMMARY" <<'PY'
           import importlib.metadata as metadata
+          import os
           import platform
 
           def version(package):
@@ -77,7 +80,7 @@ jobs:
                   return "not installed"
 
           packages = ["pydantic-ai", "pydantic-ai-slim", "pydantic", "genai-prices"]
-          print(f"Python {platform.python_version()}, " + ", ".join(f"{p} {version(p)}" for p in packages))
+          print(f"{os.environ['CELL']}: Python {platform.python_version()}, " + ", ".join(f"{p} {version(p)}" for p in packages))
           PY
 
       - name: Check PydanticAI version
