@@ -18,7 +18,7 @@ jobs:
         run: pip install uv
 
       - name: Install dependencies with lock file
-        run: uv sync --locked --all-extras
+        run: uv sync --locked --all-extras --python "3.11"
 
       - name: Run mypy on tests
-        run: uv run mypy tests --config-file pyproject.toml
+        run: uv run --no-sync mypy tests --config-file pyproject.toml
