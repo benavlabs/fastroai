@@ -18,7 +18,7 @@ jobs:
         run: pip install uv
 
       - name: Install dependencies with lock file
-        run: uv sync --all-extras
+        run: uv sync --locked --all-extras
 
       - name: Run mypy
         run: uv run mypy fastroai --config-file pyproject.toml
