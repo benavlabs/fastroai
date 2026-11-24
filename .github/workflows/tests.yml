@@ -32,3 +32,71 @@ jobs:
 
       - name: Run tests
         run: uv run --no-sync pytest
+
+  compat:
+    name: compat (${{ matrix.python-version }}, ${{ matrix.pydantic-ai.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+        pydantic-ai:
+          - { name: "1.x latest", spec: "pydantic-ai<2", expect: ">1.26.0,<2" }
+          - { name: "2.63.0", spec: "pydantic-ai==2.63.0", expect: "==2.63.0" }
+          - { name: "2.64.0", spec: "pydantic-ai==2.64.0", expect: "==2.64.0" }
+          - { name: "latest", spec: "pydantic-ai", expect: ">=2" }
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies with lock file
+        run: uv sync --locked --group dev --python ${{ matrix.python-version }}
+
+      - name: Install PydanticAI for this cell
+        run: uv pip install --upgrade-package pydantic-ai "${{ matrix.pydantic-ai.spec }}"
+
+      - name: Report versions
+        if: always()
+        run: |
+          uv run --no-sync python - >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import importlib.metadata as metadata
+          import platform
+
+          def version(package):
+              try:
+                  return metadata.version(package)
+              except metadata.PackageNotFoundError:
+                  return "not installed"
+
+          packages = ["pydantic-ai", "pydantic-ai-slim", "pydantic", "genai-prices"]
+          print(f"Python {platform.python_version()}, " + ", ".join(f"{p} {version(p)}" for p in packages))
+          PY
+
+      - name: Check PydanticAI version
+        env:
+          EXPECT: ${{ matrix.pydantic-ai.expect }}
+        run: |
+          uv run --no-sync python - <<'PY'
+          import importlib.metadata as metadata
+          import os
+          import sys
+
+          from packaging.specifiers import SpecifierSet
+
+          expected = SpecifierSet(os.environ["EXPECT"])
+          installed = {p: metadata.version(p) for p in ("pydantic-ai", "pydantic-ai-slim")}
+          print(f"expected {expected}, installed {installed}")
+          if len(set(installed.values())) != 1 or not all(v in expected for v in installed.values()):
+              sys.exit("installed PydanticAI does not match this cell")
+          PY
+
+      - name: Run tests
+        run: uv run --no-sync pytest
