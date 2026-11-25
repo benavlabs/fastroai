@@ -1,13 +1,22 @@
 """Suite-wide pytest hooks."""
 
+from collections.abc import Iterator
 from importlib.metadata import version
 
 import pytest
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
+from pydantic_ai import models
 
 USAGE_CALL_BREAK = SpecifierSet(">=2.0,<2.64")
 USAGE_CALL_BREAK_REASON = "result.usage() raises TypeError on pydantic-ai >=2.0,<2.64"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def refuse_model_requests() -> Iterator[None]:
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(models, "ALLOW_MODEL_REQUESTS", False)
+        yield
 
 
 def pytest_configure(config: pytest.Config) -> None:

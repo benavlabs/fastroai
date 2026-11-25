@@ -5,6 +5,9 @@ from importlib.metadata import version
 import pytest
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
+from pydantic_ai import models
+
+from fastroai import FastroAgent
 
 USAGE_CALL_BREAK = SpecifierSet(">=2.0,<2.64")
 
@@ -45,3 +48,23 @@ def test_usage_call_break_covers_pydantic_ai_2_0_through_2_63() -> None:
     from tests import conftest
 
     assert conftest.USAGE_CALL_BREAK == USAGE_CALL_BREAK
+
+
+async def test_an_unscripted_model_request_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-not-a-real-key")
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://127.0.0.1:9/v1")
+    agent: FastroAgent[str] = FastroAgent()
+
+    with pytest.raises(RuntimeError, match="ALLOW_MODEL_REQUESTS is False"):
+        await agent.run("This request must never leave the test run.")
+
+
+@pytest.fixture(scope="module")
+def allow_model_requests_seen_by_a_module_fixture() -> bool:
+    return models.ALLOW_MODEL_REQUESTS
+
+
+def test_model_requests_are_refused_before_module_fixtures_run(
+    allow_model_requests_seen_by_a_module_fixture: bool,
+) -> None:
+    assert allow_model_requests_seen_by_a_module_fixture is False
