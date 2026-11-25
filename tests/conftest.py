@@ -19,13 +19,6 @@ def refuse_model_requests() -> Iterator[None]:
         yield
 
 
-def pytest_configure(config: pytest.Config) -> None:
-    config.addinivalue_line(
-        "markers",
-        f"usage_call_break: runs a real agent, so it is xfail(strict, TypeError) where {USAGE_CALL_BREAK_REASON}",
-    )
-
-
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     if Version(version("pydantic-ai-slim")) not in USAGE_CALL_BREAK:
         return

@@ -44,6 +44,13 @@ packages = ["fastroai"]
 asyncio_mode = "auto"
 addopts = "-p pytester"
 testpaths = ["tests"]
+strict_markers = true
+markers = [
+    "keep: contract behaviour that must pass on every matrix cell",
+    "fix(id, release, raises): a known bug, xfail(strict) with the declared exception until its id is in tests/contract/fixed.py",
+    "new(id, since): a later feature, xfail(strict) through FeatureMissing on a driver that lacks it",
+    "usage_call_break: runs a real agent, so it is xfail(strict, TypeError) on the pydantic-ai versions in tests/conftest.py's USAGE_CALL_BREAK",
+]
 
 [tool.mypy]
 python_version = "3.11"
