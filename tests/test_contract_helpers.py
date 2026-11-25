@@ -10,9 +10,10 @@ from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart, ToolReturnPart, UserPromptPart
 from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.settings import ModelSettings
-from pydantic_ai.usage import RequestUsage
+from pydantic_ai.usage import RequestUsage, RunUsage
 
 from fastroai import CostCalculator, FastroAgent
+from tests.contract.pricebook import PRICES, Price, calculator, expected_microcents
 from tests.contract.scripted import Script, ScriptError, http_error, streamed, structured, text, tool_calls
 from tests.contract.test_no_mock import mock_uses
 
@@ -358,3 +359,112 @@ async def test_a_plain_request_for_a_streamed_reply_is_recorded_as_a_script_erro
 def test_a_streamed_reply_needs_at_least_one_chunk() -> None:
     with pytest.raises(ValueError, match="at least one chunk"):
         streamed()
+
+
+def test_expected_microcents_is_whole_dollar_prices_times_tokens() -> None:
+    usage = RequestUsage(input_tokens=1_000, output_tokens=50, cache_read_tokens=200, cache_write_tokens=100)
+
+    cost = expected_microcents("scripted-small", usage)
+
+    assert PRICES["scripted-small"] == Price(input=3, output=15, cache_read=1, cache_write=4)
+    assert cost == 700 * 3 + 50 * 15 + 200 * 1 + 100 * 4 == 3_450
+    assert type(cost) is int
+
+
+def test_expected_microcents_takes_the_run_usage_fastroagent_reads() -> None:
+    usage = RunUsage(requests=2, input_tokens=300, output_tokens=20, cache_read_tokens=100)
+
+    assert expected_microcents("scripted-large", usage) == 200 * 5 + 20 * 25 + 100 * 2 == 1_700
+
+
+SHAPES = [
+    RequestUsage(input_tokens=120, output_tokens=30),
+    RequestUsage(input_tokens=120, output_tokens=0),
+    RequestUsage(input_tokens=200, output_tokens=40, cache_read_tokens=50),
+    RequestUsage(input_tokens=200, output_tokens=40, cache_write_tokens=60),
+    RequestUsage(input_tokens=200, output_tokens=40, cache_read_tokens=50, cache_write_tokens=60),
+    RequestUsage(input_tokens=110, output_tokens=7, cache_read_tokens=110),
+    RequestUsage(input_tokens=1_234_567, output_tokens=765_431, cache_read_tokens=333_333, cache_write_tokens=1),
+]
+
+
+@pytest.mark.parametrize("model", sorted(PRICES))
+@pytest.mark.parametrize("usage", SHAPES)
+def test_the_pricebook_calculator_agrees_with_expected_microcents(model: str, usage: RequestUsage) -> None:
+    assert calculator().calculate_cost(
+        model,
+        usage.input_tokens,
+        usage.output_tokens,
+        cache_read_tokens=usage.cache_read_tokens,
+        cache_write_tokens=usage.cache_write_tokens,
+    ) == expected_microcents(model, usage)
+
+
+def test_every_pricebook_rate_is_distinct_within_and_across_models() -> None:
+    rates = [(price.input, price.output, price.cache_read, price.cache_write) for price in PRICES.values()]
+
+    assert len(PRICES) >= 2
+    assert len({rate for model_rates in rates for rate in model_rates}) == 4 * len(rates)
+
+
+def test_calculator_gives_a_fresh_costcalculator_each_time() -> None:
+    first = calculator()
+    first.add_pricing_override("scripted-small", input_per_mtok=100.0, output_per_mtok=100.0)
+
+    assert calculator().calculate_cost("scripted-small", 10, 0) == 30
+
+
+@pytest.mark.usage_call_break
+async def test_a_scripted_run_costs_exactly_expected_microcents() -> None:
+    usage = RequestUsage(input_tokens=400, output_tokens=25, cache_read_tokens=150, cache_write_tokens=50)
+    script = Script("scripted-large", [text("cached", usage=usage)])
+    agent = FastroAgent(agent=Agent(script.model), cost_calculator=calculator())
+
+    response = await agent.run("price this")
+
+    assert (
+        response.cost_microcents == expected_microcents("scripted-large", usage) == 200 * 5 + 25 * 25 + 150 * 2 + 50 * 7
+    )
+    script.assert_consumed()
+
+
+@pytest.mark.parametrize(
+    ("rates", "message"),
+    [
+        ({"input": 0}, "input"),
+        ({"output": -1}, "output"),
+        ({"cache_read": 0}, "cache_read"),
+        ({"cache_write": 0}, "cache_write"),
+        ({"input": 2.5}, "input"),
+        ({"output": True}, "output"),
+    ],
+)
+def test_a_price_is_a_positive_whole_number_of_dollars_per_mtok(rates: dict[str, Any], message: str) -> None:
+    fields: dict[str, Any] = {"input": 3, "output": 15, "cache_read": 1, "cache_write": 4} | rates
+
+    with pytest.raises(ValueError, match=f"^the {message} price must be a positive whole number of dollars per Mtok"):
+        Price(**fields)
+
+
+@pytest.mark.parametrize(
+    ("model", "usage", "message"),
+    [
+        ("scripted-unpriced", RequestUsage(input_tokens=1), "no pricebook price for 'scripted-unpriced'"),
+        ("openai:scripted-small", RequestUsage(input_tokens=1), "no pricebook price for 'openai:scripted-small'"),
+        (
+            "scripted-small",
+            RequestUsage(input_tokens=10, cache_read_tokens=8, cache_write_tokens=3),
+            "cache tokens 11 exceed input tokens 10",
+        ),
+        ("scripted-small", RequestUsage(input_tokens=10, input_audio_tokens=2), "the pricebook has no audio prices"),
+        ("scripted-small", RequestUsage(output_tokens=10, output_audio_tokens=2), "the pricebook has no audio prices"),
+        (
+            "scripted-small",
+            RequestUsage(input_tokens=10, cache_read_tokens=4, cache_audio_read_tokens=1),
+            "the pricebook has no audio prices",
+        ),
+    ],
+)
+def test_expected_microcents_refuses_usage_it_cannot_price(model: str, usage: RequestUsage, message: str) -> None:
+    with pytest.raises(ValueError, match=f"^{message}"):
+        expected_microcents(model, usage)
