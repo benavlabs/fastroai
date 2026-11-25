@@ -10,12 +10,14 @@ CI runs uv 0.13.8 and checks the lock file with it.
 # Clone and setup
 git clone https://github.com/benavlabs/fastroai.git
 cd fastroai
-uv sync
+uv sync --locked --python 3.11
 
 # Verify installation
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy fastroai --config-file pyproject.toml
+uv run mypy tests --config-file pyproject.toml
 uv run pytest
-uv run mypy fastroai
-uv run ruff check
 ```
 
 ## Architecture Overview
@@ -92,10 +94,11 @@ uv run pytest
 uv run pytest --cov=fastroai
 
 # Type checking
-uv run mypy fastroai
+uv run mypy fastroai --config-file pyproject.toml
+uv run mypy tests --config-file pyproject.toml
 
-# All checks (run before submitting PR)
-uv run ruff format . && uv run ruff check --fix . && uv run mypy fastroai && uv run pytest
+# All checks CI runs (run before submitting PR)
+uv run ruff check . && uv run ruff format --check . && uv run mypy fastroai --config-file pyproject.toml && uv run mypy tests --config-file pyproject.toml && uv run pytest
 ```
 
 Tests use `pytest-asyncio` with `asyncio_mode = "auto"`. Mock PydanticAI agents using `model="test"` or `TestModel()`.
@@ -154,6 +157,6 @@ Please follow our [Code of Conduct](CODE_OF_CONDUCT.md) to maintain a welcoming 
 
 - Stateless agents, integer microcents, protocol-based tracing
 - Test everything, respect existing patterns
-- Run `uv run ruff format . && uv run ruff check --fix . && uv run mypy fastroai && uv run pytest` before submitting
+- Run `uv run ruff check . && uv run ruff format --check . && uv run mypy fastroai --config-file pyproject.toml && uv run mypy tests --config-file pyproject.toml && uv run pytest` before submitting
 
 Thank you for contributing to FastroAI!

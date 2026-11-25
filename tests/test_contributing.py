@@ -18,6 +18,10 @@ EXPECTED_JOBS = {
 }
 COMMAND_SEPARATORS = {";", "&&", "||", "|", "&"}
 UV_COMMANDS = {"uv", "uvx"}
+FENCE = re.compile(r"^[ \t]*(`{3,}|~{3,})[ \t]*([^\n`]*)\n(.*?)^[ \t]*\1[ \t]*$", re.DOTALL | re.MULTILINE)
+NON_SHELL_FENCES = {"python", "py", "toml", "yaml", "yml", "json", "text", "txt", "output"}
+UV_WORD = re.compile(r"(?<![\w-])uvx?(?![\w-])")
+INLINE_CODE = re.compile(r"`((?:[^`\n]|\n(?!\s*\n))+)`")
 
 
 def workflow_jobs() -> dict[tuple[str, str], list[dict[str, Any]]]:
@@ -92,14 +96,94 @@ def test_every_setup_uv_step_pins_the_same_uv_version() -> None:
     assert len(set(ci_uv_pins())) == 1
 
 
+def is_uv_sync(command: list[str]) -> bool:
+    return "uv" in command and "sync" in command[command.index("uv") + 1 :]
+
+
+def option_value(command: list[str], *options: str) -> str | None:
+    for index, token in enumerate(command):
+        if token in options and index + 1 < len(command):
+            return command[index + 1]
+        for option in options:
+            if token.startswith(f"{option}="):
+                return token.split("=", 1)[1]
+    return None
+
+
 def test_every_uv_sync_in_ci_checks_the_lock_file() -> None:
     syncs = [
         command
         for steps in workflow_jobs().values()
         for step in steps
         for command in shell_commands(step)
-        if "uv" in command and "sync" in command[command.index("uv") + 1 :]
+        if is_uv_sync(command)
     ]
+    assert syncs
+    assert all("--locked" in command for command in syncs)
+
+
+def ci_checks() -> set[tuple[str, ...]]:
+    return {
+        tuple(token for token in command if token != "--no-sync")
+        for steps in workflow_jobs().values()
+        for step in steps
+        for command in shell_commands(step)
+        if command[:2] == ["uv", "run"] and "python" not in command
+    }
+
+
+def shell_blocks(text: str) -> list[str]:
+    return [
+        re.sub(r"^[ \t]*\$[ \t]+", "", body, flags=re.MULTILINE)
+        for _, info, body in FENCE.findall(text)
+        if (info.split() or [""])[0].lower() not in NON_SHELL_FENCES
+    ]
+
+
+def contributing_snippets() -> list[str]:
+    text = (ROOT / "CONTRIBUTING.md").read_text()
+    spans = [" ".join(span.split()) for span in INLINE_CODE.findall(FENCE.sub("", text))]
+    return shell_blocks(text) + spans
+
+
+def uv_lines(snippet: str) -> list[str]:
+    return [line for line in snippet.replace("\\\n", " ").splitlines() if UV_WORD.search(line)]
+
+
+def doc_commands(snippet: str) -> list[list[str]]:
+    return [command for line in uv_lines(snippet) for command in shell_commands({"run": line})]
+
+
+def uv_run_commands(snippet: str) -> list[list[str]]:
+    return [command for command in doc_commands(snippet) if command[:2] == ["uv", "run"]]
+
+
+def is_fixer(command: list[str]) -> bool:
+    return "--fix" in command or ("format" in command and "--check" not in command)
+
+
+def test_contributing_quick_setup_runs_the_checks_ci_runs() -> None:
+    quick_setup = (ROOT / "CONTRIBUTING.md").read_text().split("## Quick Setup", 1)[1].split("\n## ", 1)[0]
+    (block,) = shell_blocks(quick_setup)
+    assert {tuple(command) for command in uv_run_commands(block)} == ci_checks()
+    (sync,) = [command for command in doc_commands(block) if is_uv_sync(command)]
+    tested = yaml.safe_load((WORKFLOWS / "tests.yml").read_text())["jobs"]["tests"]["strategy"]["matrix"]
+    assert option_value(sync, "--python", "-p") in tested["python-version"]
+
+
+def test_every_chain_of_checks_in_contributing_runs_the_checks_ci_runs() -> None:
+    chains = [
+        commands
+        for snippet in contributing_snippets()
+        for line in uv_lines(snippet)
+        if len(commands := uv_run_commands(line)) > 1 and not any(map(is_fixer, commands))
+    ]
+    assert len(chains) >= 2
+    assert all({tuple(command) for command in chain} == ci_checks() for chain in chains)
+
+
+def test_every_uv_sync_in_contributing_checks_the_lock_file() -> None:
+    syncs = [command for snippet in contributing_snippets() for command in doc_commands(snippet) if is_uv_sync(command)]
     assert syncs
     assert all("--locked" in command for command in syncs)
 
