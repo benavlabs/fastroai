@@ -1,16 +1,8 @@
-"""Integration tests that use real AI APIs.
-
-These tests require OPENAI_API_KEY to be set in the environment.
-
-Run with: uv run pytest tests/test_integration.py -v
-
-Skip with: uv run pytest tests/ --ignore=tests/test_integration.py
-"""
+"""Integration tests that run FastroAI end to end without a real model provider."""
 # mypy: disable-error-code="var-annotated"
 
 import asyncio
 import logging
-import os
 import uuid
 from dataclasses import dataclass
 from typing import Any
@@ -35,112 +27,7 @@ from fastroai import (
     safe_tool,
 )
 
-# Marker for tests that require OpenAI API
-requires_openai = pytest.mark.skipif(
-    not os.environ.get("OPENAI_API_KEY"),
-    reason="OPENAI_API_KEY not set",
-)
-
 PRICED_MODEL = "pricebook-model"
-
-
-@requires_openai
-class TestFastroAgentIntegration:
-    """Integration tests for FastroAgent with real APIs."""
-
-    async def test_simple_chat(self) -> None:
-        """Test simple chat with OpenAI."""
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="You are a helpful assistant. Be concise.",
-        )
-
-        response = await agent.run("What is 2+2? Reply with just the number.")
-
-        assert response.content is not None
-        assert "4" in response.content
-        assert response.input_tokens > 0
-        assert response.output_tokens > 0
-        assert response.cost_microcents > 0
-        assert response.processing_time_ms > 0
-
-    async def test_streaming(self) -> None:
-        """Test streaming responses."""
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Be concise.",
-        )
-
-        chunks = []
-        async for chunk in agent.run_stream("Count from 1 to 3"):
-            chunks.append(chunk)
-
-        assert len(chunks) > 1
-        assert chunks[-1].is_final is True
-        assert chunks[-1].usage_data is not None
-        assert chunks[-1].usage_data.input_tokens > 0
-
-    async def test_with_message_history(self) -> None:
-        """Test conversation continuity with message history."""
-        from pydantic_ai.messages import (
-            ModelRequest,
-            ModelResponse,
-            TextPart,
-            UserPromptPart,
-        )
-
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="You are a helpful assistant. Be very concise.",
-            temperature=0.0,
-        )
-
-        # First message
-        response1 = await agent.run("My name is Alice. Remember it.")
-
-        # Build message history using PydanticAI format
-        message_history: list[ModelRequest | ModelResponse] = [
-            ModelRequest(parts=[UserPromptPart(content="My name is Alice. Remember it.")]),
-            ModelResponse(parts=[TextPart(content=response1.content)]),
-        ]
-
-        # Second message with history
-        response2 = await agent.run("What is my name?", message_history=message_history)
-
-        assert "alice" in response2.content.lower()
-
-    async def test_tool_call_tracking(self) -> None:
-        """Test that tool_call_count and request_count are tracked correctly."""
-
-        @safe_tool(timeout=5)
-        async def add_numbers(a: int, b: int) -> str:
-            """Add two numbers together."""
-            return f"The sum is {a + b}"
-
-        @safe_tool(timeout=5)
-        async def multiply_numbers(a: int, b: int) -> str:
-            """Multiply two numbers together."""
-            return f"The product is {a * b}"
-
-        class MathToolset(SafeToolset):
-            def __init__(self) -> None:
-                super().__init__(tools=[add_numbers, multiply_numbers], name="math")
-
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Use the math tools to answer questions. Always use tools, don't calculate yourself.",
-            toolsets=[MathToolset()],
-        )
-
-        response = await agent.run("What is 5 + 3?")
-
-        # Should have made at least 1 tool call
-        assert response.tool_call_count >= 1, f"Expected tool_call_count >= 1, got {response.tool_call_count}"
-        # Should have made at least 2 requests (initial + after tool response)
-        assert response.request_count >= 2, f"Expected request_count >= 2, got {response.request_count}"
-        # Should have tool call details
-        assert len(response.tool_calls) >= 1, "Expected tool_calls list to have items"
-        assert response.tool_calls[0]["tool_name"] == "add_numbers"
 
 
 class TestAgentUsageMapping:
@@ -523,58 +410,6 @@ class TestPipelineIntegration:
         result2 = await pipeline.execute({"message": "my name is Alice"}, None)
         assert result2.stopped_early is False
 
-    @requires_openai
-    async def test_with_ai_step(self) -> None:
-        """Test pipeline with .as_step()."""
-        greet_agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Generate a one-word greeting.",
-            temperature=0.0,
-        )
-        greet_step = greet_agent.as_step("Say hello")
-
-        pipeline: Pipeline[None, dict[str, str], str] = Pipeline(
-            name="greeting_pipeline",
-            steps={"greet": greet_step},
-        )
-
-        result = await pipeline.execute({}, None)
-
-        assert result.output is not None
-        assert len(result.output) > 0
-        assert result.usage is not None
-        assert result.usage.total_cost_microcents > 0
-
-    @requires_openai
-    async def test_agent_step_with_tools(self) -> None:
-        """Test .as_step() with tool access."""
-
-        @safe_tool(timeout=5)
-        async def get_weather(city: str) -> str:
-            """Get weather for a city."""
-            return f"Weather in {city}: Sunny, 22°C"
-
-        class WeatherToolset(SafeToolset):
-            def __init__(self) -> None:
-                super().__init__(tools=[get_weather], name="weather")
-
-        weather_agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Use the weather tool to answer questions.",
-            toolsets=[WeatherToolset()],
-        )
-        weather_step = weather_agent.as_step(lambda ctx: f"What's the weather in {ctx.get_input('city')}?")
-
-        pipeline: Pipeline[None, dict[str, str], str] = Pipeline(
-            name="weather_pipeline",
-            steps={"weather": weather_step},
-        )
-
-        result = await pipeline.execute({"city": "Paris"}, None)
-
-        assert result.output is not None
-        assert "paris" in result.output.lower() or "sunny" in result.output.lower() or "22" in result.output
-
 
 class TestPipelineRoutingIntegration:
     """Integration tests for BasePipeline routing."""
@@ -620,88 +455,6 @@ class TestPipelineRoutingIntegration:
         # Test routing to complex
         result2 = await router.execute({"amount": 5000}, None)
         assert result2.output == "complex_result"
-
-
-@requires_openai
-class TestEndToEndWorkflow:
-    """End-to-end workflow tests."""
-
-    async def test_multi_step_pipeline_with_different_models(self) -> None:
-        """Test pipeline using different models for different steps."""
-        extract_agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Extract the main topic in one word.",
-        )
-        extract_step = extract_agent.as_step(lambda ctx: ctx.get_input("text"))
-
-        compose_agent = FastroAgent(
-            model="openai:gpt-4o-mini",  # Could use gpt-4o for quality
-            system_prompt="Write a haiku about the given topic.",
-        )
-        compose_step = compose_agent.as_step(lambda ctx: f"Topic: {ctx.get_dependency('extract', str)}")
-
-        pipeline: Pipeline[None, dict[str, str], str] = Pipeline(
-            name="haiku_pipeline",
-            steps={
-                "extract": extract_step,
-                "compose": compose_step,
-            },
-            dependencies={
-                "compose": ["extract"],
-            },
-        )
-
-        result = await pipeline.execute({"text": "The ocean waves crash"}, None)
-
-        assert result.output is not None
-        assert len(result.output) > 0
-        assert result.usage is not None
-        assert "extract" in result.usage.steps
-        assert "compose" in result.usage.steps
-
-    async def test_complete_research_pipeline(self) -> None:
-        """Test a realistic multi-step research pipeline."""
-
-        @safe_tool(timeout=5)
-        async def search_database(query: str) -> str:
-            """Search internal database."""
-            return f"Found: {query} is a programming language created in 1991"
-
-        class SearchToolset(SafeToolset):
-            def __init__(self) -> None:
-                super().__init__(tools=[search_database], name="search")
-
-        research_agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Research the topic using available tools. Be concise.",
-            toolsets=[SearchToolset()],
-        )
-        research_step = research_agent.as_step(lambda ctx: f"Research: {ctx.get_input('topic')}")
-
-        summarize_agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Summarize in one sentence.",
-        )
-        summarize_step = summarize_agent.as_step(lambda ctx: f"Summarize: {ctx.get_dependency('research', str)}")
-
-        pipeline: Pipeline[None, dict[str, str], str] = Pipeline(
-            name="research_pipeline",
-            steps={
-                "research": research_step,
-                "summarize": summarize_step,
-            },
-            dependencies={
-                "summarize": ["research"],
-            },
-        )
-
-        tracer = SimpleTracer()
-        result = await pipeline.execute({"topic": "Python"}, None, tracer=tracer)
-
-        assert result.output is not None
-        assert result.usage is not None
-        assert result.usage.total_cost_microcents > 0
-        assert not result.stopped_early
 
 
 # ============================================================================
