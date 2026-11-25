@@ -1,7 +1,7 @@
 """FunctionModels that answer from a fixed script and record every request they get."""
 
 import dataclasses
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, NoReturn
 
@@ -56,6 +56,19 @@ def http_error(status: int) -> HTTPError:
 
 
 @dataclass(frozen=True)
+class Streamed:
+    chunks: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if not self.chunks:
+            raise ValueError("a streamed reply needs at least one chunk")
+
+
+def streamed(*chunks: str) -> Streamed:
+    return Streamed(chunks)
+
+
+@dataclass(frozen=True)
 class Request:
     model_name: str
     settings: ModelSettings | None
@@ -63,16 +76,16 @@ class Request:
 
 
 class Script:
-    def __init__(self, model_name: str, replies: Sequence[Reply | HTTPError]) -> None:
+    def __init__(self, model_name: str, replies: Sequence[Reply | HTTPError | Streamed]) -> None:
         if not model_name or model_name != model_name.lower() or ":" in model_name or "/" in model_name:
             raise ValueError(f"a scripted model name must be lowercase with no ':' or '/', got {model_name!r}")
         self.model_name = model_name
         self.replies = list(replies)
         self.requests: list[Request] = []
         self.errors: list[str] = []
-        self.model = FunctionModel(self._respond, model_name=model_name)
+        self.model = FunctionModel(self._respond, stream_function=self._stream, model_name=model_name)
 
-    async def _respond(self, messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+    def _next(self, messages: list[ModelMessage], info: AgentInfo, *, stream: bool) -> tuple[int, Reply | Streamed]:
         settings = None if info.model_settings is None else ModelSettings(**info.model_settings)
         self.requests.append(Request(self.model_name, settings, messages))
         number = len(self.requests)
@@ -83,7 +96,22 @@ class Script:
             raise ModelHTTPError(
                 reply.status, self.model_name, {"error": f"scripted {reply.status} on request {number}"}
             )
+        if isinstance(reply, Streamed) != stream:
+            if stream:
+                self._fail(f"request {number} is streamed but its scripted reply is not")
+            self._fail(f"request {number} is not streamed but its scripted reply is")
+        return number, reply
+
+    async def _respond(self, messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        number, reply = self._next(messages, info, stream=False)
+        assert isinstance(reply, Reply)
         return ModelResponse(parts=self._parts(reply, info, number), usage=reply.usage)
+
+    async def _stream(self, messages: list[ModelMessage], info: AgentInfo) -> AsyncIterator[str]:
+        _, reply = self._next(messages, info, stream=True)
+        assert isinstance(reply, Streamed)
+        for chunk in reply.chunks:
+            yield chunk
 
     def _parts(self, reply: Reply, info: AgentInfo, number: int) -> list[ModelResponsePart]:
         if reply.kind == "text":

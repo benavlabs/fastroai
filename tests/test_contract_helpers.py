@@ -12,7 +12,8 @@ from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import RequestUsage
 
-from tests.contract.scripted import Script, ScriptError, http_error, structured, text, tool_calls
+from fastroai import CostCalculator, FastroAgent
+from tests.contract.scripted import Script, ScriptError, http_error, streamed, structured, text, tool_calls
 from tests.contract.test_no_mock import mock_uses
 
 
@@ -270,3 +271,90 @@ async def test_a_fallback_model_answers_from_the_backup_after_a_scripted_503() -
 def test_an_http_error_reply_is_a_503_or_a_400(status: int) -> None:
     with pytest.raises(ValueError, match="503 or 400"):
         http_error(status)
+
+
+async def stream_once(script: Script, prompt: str) -> tuple[list[str], str, ModelResponse]:
+    async with Agent(script.model).run_stream(prompt) as stream:
+        deltas = [delta async for delta in stream.stream_text(delta=True, debounce_by=None)]
+        output = await stream.get_output()
+        response = [message for message in stream.all_messages() if isinstance(message, ModelResponse)][-1]
+    return deltas, output, response
+
+
+async def test_a_streamed_reply_streams_its_chunks_with_a_deterministic_estimated_usage() -> None:
+    script = Script("scripted-stream", [streamed("Hel", "lo ", "world"), streamed("Hel", "lo ", "world")])
+
+    first = await stream_once(script, "greet me")
+    second = await stream_once(script, "greet me")
+
+    deltas, output, response = first
+    assert deltas == ["Hel", "lo ", "world"]
+    assert "".join(deltas) == output == "Hello world"
+    assert response.model_name == "scripted-stream"
+    assert response.usage.input_tokens > 0
+    assert response.usage.output_tokens > 0
+    assert second[2].usage == response.usage
+    assert [parts_of(request.messages[-1], UserPromptPart)[0].content for request in script.requests] == [
+        "greet me",
+        "greet me",
+    ]
+    script.assert_consumed()
+
+
+@pytest.mark.usage_call_break
+async def test_the_final_stream_chunk_prices_the_usage_the_response_reports() -> None:
+    script = Script("scripted-stream", [streamed("a priced ", "streamed reply")])
+    calculator = CostCalculator(pricing_overrides={"scripted-stream": {"input_per_mtok": 3.0, "output_per_mtok": 15.0}})
+    agent = FastroAgent(agent=Agent(script.model), cost_calculator=calculator)
+
+    chunks = [chunk async for chunk in agent.run_stream("price this")]
+
+    final = chunks[-1]
+    assert final.is_final
+    assert final.usage_data is not None
+    assert len(script.requests) == 1
+    assert final.usage_data.content == "a priced streamed reply"
+    assert final.usage_data.model == "scripted-stream"
+    assert final.usage_data.input_tokens > 0
+    assert final.usage_data.output_tokens > 0
+    assert final.usage_data.cost_microcents == calculator.calculate_cost(
+        "scripted-stream", final.usage_data.input_tokens, final.usage_data.output_tokens
+    )
+    assert final.usage_data.cost_microcents > 0
+    script.assert_consumed()
+
+
+async def test_a_streamed_request_can_get_a_scripted_http_error() -> None:
+    script = Script("scripted-stream", [http_error(503)])
+
+    with pytest.raises(ModelHTTPError) as raised:
+        await stream_once(script, "fail")
+
+    assert raised.value.status_code == 503
+    assert len(script.requests) == 1
+    script.assert_consumed()
+
+
+async def test_a_streamed_request_for_a_plain_reply_is_recorded_as_a_script_error() -> None:
+    script = Script("scripted-stream", [text("not a stream", usage=TEXT_USAGE)])
+
+    with pytest.raises(ScriptError, match="request 1 is streamed but its scripted reply is not"):
+        await stream_once(script, "stream it")
+
+    with pytest.raises(AssertionError, match="request 1 is streamed but its scripted reply is not"):
+        script.assert_consumed()
+
+
+async def test_a_plain_request_for_a_streamed_reply_is_recorded_as_a_script_error() -> None:
+    script = Script("scripted-stream", [streamed("only ", "streamed")])
+
+    with pytest.raises(ScriptError, match="request 1 is not streamed but its scripted reply is"):
+        await Agent(script.model).run("run it")
+
+    with pytest.raises(AssertionError, match="request 1 is not streamed but its scripted reply is"):
+        script.assert_consumed()
+
+
+def test_a_streamed_reply_needs_at_least_one_chunk() -> None:
+    with pytest.raises(ValueError, match="at least one chunk"):
+        streamed()
