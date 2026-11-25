@@ -4,6 +4,8 @@ Thank you for your interest in contributing to FastroAI! This guide will get you
 
 ## Quick Setup
 
+CI runs uv 0.13.8 and checks the lock file with it.
+
 ```sh
 # Clone and setup
 git clone https://github.com/benavlabs/fastroai.git
