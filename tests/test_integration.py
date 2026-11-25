@@ -16,8 +16,8 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
-from pydantic_ai import Agent
-from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart
+from pydantic_ai import Agent, RunContext
+from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.usage import RequestUsage
 
@@ -108,36 +108,6 @@ class TestFastroAgentIntegration:
         response2 = await agent.run("What is my name?", message_history=message_history)
 
         assert "alice" in response2.content.lower()
-
-    async def test_with_dependencies(self) -> None:
-        """Test passing dependencies to agent for tools."""
-        from pydantic_ai import RunContext
-
-        @dataclass
-        class MyDeps:
-            secret_code: str
-
-        @safe_tool(timeout=5)
-        async def get_secret(ctx: RunContext[MyDeps]) -> str:
-            """Retrieve the secret code from the system."""
-            return f"The secret code is: {ctx.deps.secret_code}"
-
-        class SecretToolset(SafeToolset):
-            def __init__(self) -> None:
-                super().__init__(tools=[get_secret], name="secrets")
-
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="You can retrieve secret codes using the get_secret tool.",
-            toolsets=[SecretToolset()],
-        )
-
-        response = await agent.run(
-            "What is the secret code?",
-            deps=MyDeps(secret_code="ALPHA-7742"),
-        )
-
-        assert "ALPHA-7742" in response.content
 
     async def test_tool_call_tracking(self) -> None:
         """Test that tool_call_count and request_count are tracked correctly."""
@@ -288,6 +258,49 @@ class TestAgentTracing:
                 output_tokens,
                 cost,
             )
+
+
+class TestAgentDepsToTools:
+    """Deps passed to run() reach a FastroAgent toolset, and the tool's result reaches the model."""
+
+    @pytest.mark.usage_call_break
+    async def test_deps_reach_the_tool_and_its_result_reaches_the_model(self) -> None:
+        @dataclass
+        class UploadDeps:
+            access_code: str
+
+        @safe_tool(timeout=5)
+        async def get_access_code(ctx: RunContext[UploadDeps]) -> str:
+            """Return the access code for the current upload."""
+            return f"access code {ctx.deps.access_code}"
+
+        class UploadToolset(SafeToolset):
+            def __init__(self) -> None:
+                super().__init__(tools=[get_access_code], name="uploads")
+
+        tool_results_seen: list[list[Any]] = []
+
+        def reply(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            results = [
+                part.content for message in messages for part in message.parts if isinstance(part, ToolReturnPart)
+            ]
+            tool_results_seen.append(results)
+            if not results:
+                return ModelResponse(parts=[ToolCallPart("get_access_code", {})])
+            return ModelResponse(parts=[TextPart(f"The upload uses {results[0]}.")])
+
+        agent = FastroAgent(model="test", toolsets=[UploadToolset()])
+
+        response = await agent.run(
+            "Which access code does this upload use?",
+            deps=UploadDeps(access_code="ALPHA-7742"),
+            model=FunctionModel(reply, model_name=PRICED_MODEL),
+        )
+
+        assert tool_results_seen == [[], ["access code ALPHA-7742"]]
+        assert response.content == "The upload uses access code ALPHA-7742."
+        assert [call["tool_name"] for call in response.tool_calls] == ["get_access_code"]
+        assert response.model == PRICED_MODEL
 
 
 class TestSafeToolIntegration:
