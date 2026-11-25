@@ -6,11 +6,13 @@ import pytest
 from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
+from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart, ToolReturnPart, UserPromptPart
+from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import RequestUsage
 
-from tests.contract.scripted import Script, ScriptError, structured, text, tool_calls
+from tests.contract.scripted import Script, ScriptError, http_error, structured, text, tool_calls
 from tests.contract.test_no_mock import mock_uses
 
 
@@ -223,3 +225,48 @@ def test_a_tool_calls_reply_needs_at_least_one_call() -> None:
 def test_a_model_name_must_be_lowercase_without_a_provider_separator(name: str) -> None:
     with pytest.raises(ValueError, match="lowercase"):
         Script(name, [text("hi", usage=TEXT_USAGE)])
+
+
+@pytest.mark.parametrize("status", [503, 400])
+async def test_an_http_error_reply_fails_that_call_only_and_is_recorded(status: int) -> None:
+    script = Script(
+        "scripted-flaky",
+        [text("before", usage=TEXT_USAGE), http_error(status), text("after", usage=FINAL_USAGE)],
+    )
+    agent = Agent(script.model)
+
+    first = await agent.run("one")
+    with pytest.raises(ModelHTTPError) as raised:
+        await agent.run("two")
+    third = await agent.run("three")
+
+    assert (first.output, third.output) == ("before", "after")
+    assert (raised.value.status_code, raised.value.model_name) == (status, "scripted-flaky")
+    assert raised.value.body == {"error": f"scripted {status} on request 2"}
+    assert [parts_of(request.messages[-1], UserPromptPart)[0].content for request in script.requests] == [
+        "one",
+        "two",
+        "three",
+    ]
+    script.assert_consumed()
+
+
+async def test_a_fallback_model_answers_from_the_backup_after_a_scripted_503() -> None:
+    primary = Script("scripted-primary", [http_error(503)])
+    backup = Script("scripted-backup", [text("from the backup", usage=TEXT_USAGE)])
+
+    result = await Agent(FallbackModel(primary.model, backup.model)).run("answer")
+
+    assert result.output == "from the backup"
+    assert [(response.model_name, response.usage) for response in responses(result)] == [
+        ("scripted-backup", TEXT_USAGE)
+    ]
+    assert (len(primary.requests), len(backup.requests)) == (1, 1)
+    primary.assert_consumed()
+    backup.assert_consumed()
+
+
+@pytest.mark.parametrize("status", [200, 429, 500, 502])
+def test_an_http_error_reply_is_a_503_or_a_400(status: int) -> None:
+    with pytest.raises(ValueError, match="503 or 400"):
+        http_error(status)

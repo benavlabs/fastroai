@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, NoReturn
 
+from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.messages import ModelMessage, ModelResponse, ModelResponsePart, TextPart, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.settings import ModelSettings
@@ -42,6 +43,19 @@ def structured(output: dict[str, Any], *, usage: RequestUsage) -> Reply:
 
 
 @dataclass(frozen=True)
+class HTTPError:
+    status: int
+
+    def __post_init__(self) -> None:
+        if self.status not in (503, 400):
+            raise ValueError(f"a scripted HTTP error is a 503 or 400, got {self.status}")
+
+
+def http_error(status: int) -> HTTPError:
+    return HTTPError(status)
+
+
+@dataclass(frozen=True)
 class Request:
     model_name: str
     settings: ModelSettings | None
@@ -49,7 +63,7 @@ class Request:
 
 
 class Script:
-    def __init__(self, model_name: str, replies: Sequence[Reply]) -> None:
+    def __init__(self, model_name: str, replies: Sequence[Reply | HTTPError]) -> None:
         if not model_name or model_name != model_name.lower() or ":" in model_name or "/" in model_name:
             raise ValueError(f"a scripted model name must be lowercase with no ':' or '/', got {model_name!r}")
         self.model_name = model_name
@@ -65,6 +79,10 @@ class Script:
         if number > len(self.replies):
             self._fail(f"request {number} ran past the {len(self.replies)} scripted replies")
         reply = self.replies[number - 1]
+        if isinstance(reply, HTTPError):
+            raise ModelHTTPError(
+                reply.status, self.model_name, {"error": f"scripted {reply.status} on request {number}"}
+            )
         return ModelResponse(parts=self._parts(reply, info, number), usage=reply.usage)
 
     def _parts(self, reply: Reply, info: AgentInfo, number: int) -> list[ModelResponsePart]:
