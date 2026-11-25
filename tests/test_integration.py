@@ -142,32 +142,6 @@ class TestFastroAgentIntegration:
         assert len(response.tool_calls) >= 1, "Expected tool_calls list to have items"
         assert response.tool_calls[0]["tool_name"] == "add_numbers"
 
-    async def test_multiple_tool_calls_tracking(self) -> None:
-        """Test tracking when agent makes multiple tool calls."""
-
-        @safe_tool(timeout=5)
-        async def get_price(item: str) -> str:
-            """Get the price of an item."""
-            prices = {"apple": 1.50, "banana": 0.75, "orange": 2.00}
-            return f"{item} costs ${prices.get(item, 0):.2f}"
-
-        class PriceToolset(SafeToolset):
-            def __init__(self) -> None:
-                super().__init__(tools=[get_price], name="prices")
-
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Use the get_price tool to answer price questions. Call the tool for each item.",
-            toolsets=[PriceToolset()],
-        )
-
-        response = await agent.run("How much do an apple and a banana cost?")
-
-        # Should have made at least 2 tool calls (one for each item)
-        # Note: The model might call them in one go or separately
-        assert response.tool_call_count >= 1, f"Expected tool_call_count >= 1, got {response.tool_call_count}"
-        assert response.request_count >= 2, f"Expected request_count >= 2, got {response.request_count}"
-
 
 class TestAgentUsageMapping:
     """A real agent's usage reaches ChatResponse and its cost."""
@@ -301,6 +275,55 @@ class TestAgentDepsToTools:
         assert response.content == "The upload uses access code ALPHA-7742."
         assert [call["tool_name"] for call in response.tool_calls] == ["get_access_code"]
         assert response.model == PRICED_MODEL
+
+
+class TestAgentToolCallCounts:
+    """Two tool calls in one model response are both run, counted and reported."""
+
+    @pytest.mark.usage_call_break
+    async def test_two_tool_calls_in_one_response(self) -> None:
+        @safe_tool(timeout=5)
+        async def add_numbers(a: int, b: int) -> str:
+            """Add two numbers together."""
+            return f"sum {a + b}"
+
+        @safe_tool(timeout=5)
+        async def multiply_numbers(a: int, b: int) -> str:
+            """Multiply two numbers together."""
+            return f"product {a * b}"
+
+        class MathToolset(SafeToolset):
+            def __init__(self) -> None:
+                super().__init__(tools=[add_numbers, multiply_numbers], name="math")
+
+        tool_results_seen: list[list[Any]] = []
+
+        def reply(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            results = [
+                part.content for message in messages for part in message.parts if isinstance(part, ToolReturnPart)
+            ]
+            tool_results_seen.append(results)
+            if not results:
+                return ModelResponse(
+                    parts=[
+                        ToolCallPart("add_numbers", {"a": 5, "b": 3}),
+                        ToolCallPart("multiply_numbers", {"a": 4, "b": 6}),
+                    ]
+                )
+            return ModelResponse(parts=[TextPart(" and ".join(results))])
+
+        agent = FastroAgent(model="test", toolsets=[MathToolset()])
+
+        response = await agent.run("What is 5 + 3, and 4 * 6?", model=FunctionModel(reply, model_name=PRICED_MODEL))
+
+        assert tool_results_seen == [[], ["sum 8", "product 24"]]
+        assert response.content == "sum 8 and product 24"
+        assert response.tool_call_count == 2
+        assert response.request_count == 2
+        assert [(call["tool_name"], call["args"]) for call in response.tool_calls] == [
+            ("add_numbers", {"a": 5, "b": 3}),
+            ("multiply_numbers", {"a": 4, "b": 6}),
+        ]
 
 
 class TestSafeToolIntegration:
