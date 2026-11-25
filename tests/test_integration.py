@@ -9,7 +9,9 @@ Skip with: uv run pytest tests/ --ignore=tests/test_integration.py
 # mypy: disable-error-code="var-annotated"
 
 import asyncio
+import logging
 import os
+import uuid
 from dataclasses import dataclass
 from typing import Any
 
@@ -61,19 +63,6 @@ class TestFastroAgentIntegration:
         assert response.output_tokens > 0
         assert response.cost_microcents > 0
         assert response.processing_time_ms > 0
-
-    async def test_with_tracer(self) -> None:
-        """Test that tracing works with real API calls."""
-        tracer = SimpleTracer()
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Reply with one word.",
-        )
-
-        response = await agent.run("Say 'hello'", tracer=tracer)
-
-        assert response.trace_id is not None
-        assert len(response.trace_id) == 36  # UUID format
 
     async def test_streaming(self) -> None:
         """Test streaming responses."""
@@ -255,6 +244,50 @@ class TestAgentUsageMapping:
             input_audio_tokens=7,
             cache_audio_read_tokens=3,
         )
+
+
+class TestAgentTracing:
+    """A tracer passed to run() records each run under the response's trace id."""
+
+    @pytest.mark.usage_call_break
+    async def test_each_run_logs_its_span_and_metrics_under_its_trace_id(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        usages = iter(
+            [RequestUsage(input_tokens=100, output_tokens=20), RequestUsage(input_tokens=300, output_tokens=40)]
+        )
+
+        def reply(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            return ModelResponse(parts=[TextPart("done")], usage=next(usages))
+
+        calculator = CostCalculator(pricing_overrides={PRICED_MODEL: {"input_per_mtok": 1.0, "output_per_mtok": 2.0}})
+        agent = FastroAgent(agent=Agent(FunctionModel(reply, model_name=PRICED_MODEL)), cost_calculator=calculator)
+        tracer = SimpleTracer(logger=logging.getLogger("tests.agent_tracing"))
+        caplog.set_level(logging.DEBUG, logger="tests.agent_tracing")
+
+        first = await agent.run("First question.", tracer=tracer)
+        second = await agent.run("Second question.", tracer=tracer)
+
+        assert first.trace_id != second.trace_id
+        assert {str(uuid.UUID(first.trace_id)), str(uuid.UUID(second.trace_id))} == {first.trace_id, second.trace_id}
+        records = [vars(record) for record in caplog.records if record.name == "tests.agent_tracing"]
+        assert {record.get("trace_id") for record in records} == {first.trace_id, second.trace_id}
+        for response, (input_tokens, output_tokens, cost) in ((first, (100, 20, 140)), (second, (300, 40, 380))):
+            mine = [record for record in records if record.get("trace_id") == response.trace_id]
+            spans = [record["span"] for record in mine if "span" in record]
+            metrics = sorted(
+                (record["metric_name"], record["metric_value"]) for record in mine if "metric_name" in record
+            )
+            assert spans == ["fastroai.agent.run", "fastroai.agent.run"]
+            assert metrics == sorted(
+                [("input_tokens", input_tokens), ("output_tokens", output_tokens), ("cost_microcents", cost)]
+            )
+            assert all(type(value) is int for _, value in metrics)
+            assert (response.input_tokens, response.output_tokens, response.cost_microcents) == (
+                input_tokens,
+                output_tokens,
+                cost,
+            )
 
 
 class TestSafeToolIntegration:
@@ -556,26 +589,6 @@ class TestPipelineRoutingIntegration:
 @requires_openai
 class TestEndToEndWorkflow:
     """End-to-end workflow tests."""
-
-    async def test_full_workflow_with_tracing(self) -> None:
-        """Test complete workflow: agent + tracing + cost tracking."""
-        tracer = SimpleTracer()
-
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="You are a math tutor. Be very brief.",
-            temperature=0.0,
-        )
-
-        response1 = await agent.run("What is 5+5?", tracer=tracer)
-        assert "10" in response1.content
-
-        response2 = await agent.run("What is 3*4?", tracer=tracer)
-        assert "12" in response2.content
-
-        total_cost = response1.cost_microcents + response2.cost_microcents
-        assert total_cost > 0
-        assert response1.trace_id != response2.trace_id
 
     async def test_multi_step_pipeline_with_different_models(self) -> None:
         """Test pipeline using different models for different steps."""
