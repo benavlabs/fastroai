@@ -1,5 +1,6 @@
 """Self-tests for the contract suite's helpers."""
 
+import asyncio
 from typing import Any
 
 import pytest
@@ -14,6 +15,7 @@ from pydantic_ai.usage import RequestUsage, RunUsage
 
 from fastroai import CostCalculator, FastroAgent
 from tests.contract.pricebook import PRICES, Price, calculator, expected_microcents
+from tests.contract.recorders import Gate, Intervals, Meeting, Progress
 from tests.contract.scripted import Script, ScriptError, http_error, streamed, structured, text, tool_calls
 from tests.contract.test_no_mock import mock_uses
 
@@ -468,3 +470,244 @@ def test_a_price_is_a_positive_whole_number_of_dollars_per_mtok(rates: dict[str,
 def test_expected_microcents_refuses_usage_it_cannot_price(model: str, usage: RequestUsage, message: str) -> None:
     with pytest.raises(ValueError, match=f"^{message}"):
         expected_microcents(model, usage)
+
+
+def interleaved(*events: str) -> Intervals:
+    intervals = Intervals()
+    for event in events:
+        action, name = event.split(" ")
+        intervals.start(name) if action == "start" else intervals.end(name)
+    return intervals
+
+
+@pytest.mark.parametrize(
+    "events",
+    [
+        ["start a", "start b", "end a", "end b"],
+        ["start a", "start b", "end b", "end a"],
+        ["start b", "start a", "end a", "end b"],
+    ],
+)
+def test_assert_overlap_passes_when_every_step_runs_at_one_moment(events: list[str]) -> None:
+    interleaved(*events).assert_overlap("a", "b")
+
+
+@pytest.mark.parametrize(
+    "events",
+    [
+        ["start a", "end a", "start b", "end b"],
+        ["start b", "end b", "start a", "end a"],
+    ],
+)
+def test_assert_overlap_fails_on_steps_that_ran_one_after_another(events: list[str]) -> None:
+    intervals = interleaved(*events)
+
+    with pytest.raises(AssertionError, match=r"^steps \['a', 'b'\] never ran at one moment"):
+        intervals.assert_overlap("a", "b")
+
+
+def test_assert_overlap_needs_one_moment_for_all_steps_not_only_neighbouring_pairs() -> None:
+    intervals = interleaved("start a", "start b", "end a", "start c", "end b", "end c")
+    intervals.assert_overlap("a", "b")
+    intervals.assert_overlap("b", "c")
+
+    with pytest.raises(AssertionError, match=r"^steps \['a', 'b', 'c'\] never ran at one moment"):
+        intervals.assert_overlap("a", "b", "c")
+
+
+def test_assert_order_passes_when_each_step_ends_before_the_next_starts() -> None:
+    interleaved("start a", "end a", "start b", "end b", "start c", "end c").assert_order("a", "b", "c")
+
+
+@pytest.mark.parametrize(
+    ("events", "message"),
+    [
+        (["start a", "start b", "end a", "end b"], "step 'b' started before step 'a' ended"),
+        (["start b", "end b", "start a", "end a"], "step 'b' started before step 'a' ended"),
+        (["start a", "end a", "start c", "start b", "end b", "end c"], "step 'c' started before step 'b' ended"),
+    ],
+)
+def test_assert_order_fails_when_a_step_starts_before_the_previous_one_ends(events: list[str], message: str) -> None:
+    intervals = interleaved(*events)
+
+    with pytest.raises(AssertionError, match=f"^{message}"):
+        intervals.assert_order(*sorted({event.split(" ")[1] for event in events}))
+
+
+def test_ending_one_step_and_starting_the_next_with_no_await_between_is_ordered_not_overlapping() -> None:
+    intervals = Intervals()
+    intervals.start("a")
+    intervals.end("a")
+    intervals.start("b")
+    intervals.end("b")
+
+    intervals.assert_order("a", "b")
+    with pytest.raises(AssertionError):
+        intervals.assert_overlap("a", "b")
+
+
+async def test_a_span_records_its_step_even_when_the_body_raises() -> None:
+    intervals = Intervals()
+
+    with pytest.raises(KeyError):
+        async with intervals.span("a"):
+            raise KeyError("boom")
+    async with intervals.span("b"):
+        pass
+
+    intervals.assert_order("a", "b")
+
+
+async def test_steps_that_meet_are_recorded_as_overlapping_without_sleeps() -> None:
+    intervals = Intervals()
+    meeting = Meeting("detectors", parties=3)
+
+    async def step(name: str) -> None:
+        async with intervals.span(name):
+            await meeting.arrive()
+
+    await asyncio.gather(step("a"), step("b"), step("c"))
+
+    intervals.assert_overlap("a", "b", "c")
+
+
+@pytest.mark.parametrize(
+    ("events", "check", "message"),
+    [
+        (["start a", "end a"], "overlap", "step 'b' was never started"),
+        (["start a", "end a"], "order", "step 'b' was never started"),
+        (["start a", "end a", "start b"], "overlap", "step 'b' never ended"),
+        (["start a", "end a", "start b"], "order", "step 'b' never ended"),
+    ],
+)
+def test_the_assertions_name_a_step_that_never_started_or_ended(events: list[str], check: str, message: str) -> None:
+    intervals = interleaved(*events)
+
+    with pytest.raises(AssertionError, match=f"^{message}"):
+        getattr(intervals, f"assert_{check}")("a", "b")
+
+
+@pytest.mark.parametrize(
+    ("events", "message"),
+    [
+        (["start a", "start a"], "step 'a' already started"),
+        (["end a"], "step 'a' ended before it started"),
+        (["start a", "end a", "end a"], "step 'a' already ended"),
+    ],
+)
+def test_recording_a_step_twice_or_out_of_turn_is_refused(events: list[str], message: str) -> None:
+    with pytest.raises(ValueError, match=f"^{message}"):
+        interleaved(*events)
+
+
+@pytest.mark.parametrize("check", ["overlap", "order"])
+@pytest.mark.parametrize("names", [(), ("a",), ("a", "a"), ("a", "b", "a")])
+def test_the_assertions_need_two_distinct_steps(check: str, names: tuple[str, ...]) -> None:
+    intervals = interleaved("start a", "end a")
+
+    with pytest.raises(ValueError, match="^name at least two distinct steps"):
+        getattr(intervals, f"assert_{check}")(*names)
+
+
+async def test_waiting_on_an_open_gate_returns() -> None:
+    gate = Gate("ready", bound=0.05)
+    gate.open()
+
+    await gate.wait()
+
+
+async def test_a_gate_opened_by_another_task_releases_its_waiter() -> None:
+    gate = Gate("ready", bound=1.0)
+    waiter = asyncio.create_task(gate.wait())
+    await asyncio.sleep(0)
+    assert not waiter.done()
+
+    gate.open()
+
+    await waiter
+
+
+async def test_a_gate_that_never_opens_fails_within_its_bound() -> None:
+    gate = Gate("ready", bound=0.05)
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+
+    with pytest.raises(AssertionError, match=r"^gate 'ready' did not open within 0.05s$"):
+        await gate.wait()
+
+    assert 0.05 <= loop.time() - started < 0.5
+
+
+async def test_a_meeting_missing_a_party_fails_within_its_bound() -> None:
+    meeting = Meeting("detectors", parties=2, bound=0.05)
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+
+    with pytest.raises(AssertionError, match=r"^meeting 'detectors' got 1 of 2 parties within 0.05s$"):
+        await meeting.arrive()
+
+    assert 0.05 <= loop.time() - started < 0.5
+
+
+async def test_steps_that_run_one_after_another_cannot_meet() -> None:
+    meeting = Meeting("detectors", parties=2, bound=0.05)
+
+    with pytest.raises(AssertionError, match="^meeting 'detectors' got 1 of 2 parties"):
+        await meeting.arrive()
+    with pytest.raises(AssertionError, match=r"^meeting 'detectors' already failed: got 1 of 2 parties within 0.05s$"):
+        await meeting.arrive()
+
+
+async def test_a_meeting_refuses_a_party_past_its_count() -> None:
+    meeting = Meeting("pair", parties=2)
+    await asyncio.gather(meeting.arrive(), meeting.arrive())
+
+    with pytest.raises(ValueError, match="^meeting 'pair' already has its 2 parties"):
+        await meeting.arrive()
+
+
+async def test_a_meeting_whose_party_was_cancelled_fails_the_next_arrival() -> None:
+    meeting = Meeting("pair", parties=2)
+    waiter = asyncio.create_task(meeting.arrive())
+    await asyncio.sleep(0)
+    waiter.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await waiter
+
+    with pytest.raises(
+        AssertionError, match=r"^meeting 'pair' already failed: a party was cancelled after 1 of 2 arrived$"
+    ):
+        await meeting.arrive()
+
+
+@pytest.mark.parametrize("bound", [0, -1.0])
+def test_a_gate_and_a_meeting_need_a_positive_bound(bound: float) -> None:
+    with pytest.raises(ValueError, match="^a wait bound must be positive"):
+        Gate("ready", bound=bound)
+    with pytest.raises(ValueError, match="^a wait bound must be positive"):
+        Meeting("pair", parties=2, bound=bound)
+
+
+@pytest.mark.parametrize("parties", [0, 1])
+def test_a_meeting_needs_at_least_two_parties(parties: int) -> None:
+    with pytest.raises(ValueError, match="^a meeting needs at least two parties"):
+        Meeting("pair", parties=parties)
+
+
+async def test_progress_keeps_every_report_in_order() -> None:
+    progress = Progress()
+
+    await progress.publish("load", 0)
+    await progress.publish("transcribe", 40)
+    await progress.publish("load", 100)
+
+    assert progress.events == [("load", 0), ("transcribe", 40), ("load", 100)]
+
+
+@pytest.mark.parametrize("percent", [-1, 101, 50.0, True])
+async def test_progress_refuses_a_percent_that_is_not_a_whole_number_from_0_to_100(percent: Any) -> None:
+    progress = Progress()
+
+    with pytest.raises(ValueError, match="^progress is a whole percent from 0 to 100"):
+        await progress.publish("load", percent)
+    assert progress.events == []
