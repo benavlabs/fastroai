@@ -48,6 +48,8 @@ def agent_step(spec: AgentStep) -> Any:
 
 
 class V0Driver:
+    features: frozenset[str] = frozenset()
+
     def agent(self, script: Script) -> FastroAgent[Any]:
         if script.model_name not in PRICES:
             raise ValueError(f"scripted model {script.model_name!r} has no pricebook price")

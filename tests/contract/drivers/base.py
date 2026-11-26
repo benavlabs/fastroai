@@ -47,6 +47,8 @@ class Outcome:
 
 
 class Driver(Protocol):
+    features: frozenset[str]
+
     def agent(self, script: Script) -> object: ...
 
     def pipeline(
