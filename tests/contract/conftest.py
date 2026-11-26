@@ -2,6 +2,8 @@
 
 import pytest
 
+from tests.contract.drivers.base import Driver
+from tests.contract.drivers.v0 import V0Driver
 from tests.contract.fixed import FIXED
 
 FIX_USAGE = 'use @pytest.mark.fix("<id>", release="<version>", raises=<exception class>)'
@@ -40,3 +42,8 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         fix_id, raises = fix_marker_arguments(item, markers[0])
         if fix_id not in fixed:
             item.add_marker(pytest.mark.xfail(strict=True, raises=raises, reason=fix_id))
+
+
+@pytest.fixture(params=[V0Driver], ids=["v0"])
+def driver(request: pytest.FixtureRequest) -> Driver:
+    return request.param()

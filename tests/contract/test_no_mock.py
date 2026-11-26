@@ -39,5 +39,6 @@ def reaches_mock(node: ast.Import | ast.ImportFrom | ast.Attribute, unittest_nam
 def test_nothing_under_tests_contract_uses_unittest_mock() -> None:
     paths = sorted(CONTRACT.rglob("*.py"))
     assert Path(__file__).resolve() in paths
+    assert CONTRACT / "drivers" / "base.py" in paths
     uses = {str(path.relative_to(CONTRACT)): mock_uses(path.read_text()) for path in paths}
     assert {path: lines for path, lines in uses.items() if lines} == {}
