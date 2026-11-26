@@ -16,6 +16,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Typing :: Typed",
 ]
@@ -41,7 +42,15 @@ packages = ["fastroai"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+addopts = "-p pytester"
 testpaths = ["tests"]
+strict_markers = true
+markers = [
+    "keep: contract behaviour that must pass on every matrix cell",
+    "fix(id, release, raises): a known bug, xfail(strict) with the declared exception until its id is in tests/contract/fixed.py",
+    "new(id, since): a later feature, xfail(strict) through FeatureMissing on a driver that lacks it",
+    "usage_call_break: runs a real agent, so it is xfail(strict, TypeError) on the pydantic-ai versions in tests/conftest.py's USAGE_CALL_BREAK",
+]
 
 [tool.mypy]
 python_version = "3.11"
@@ -73,9 +82,11 @@ ignore = ["E501"]
 [dependency-groups]
 dev = [
     "mypy>=1.19.0",
+    "packaging>=25.0",
     "pytest>=9.0.1",
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.0.0",
+    "pyyaml>=6.0.3",
     "ruff>=0.14.7",
 ]
 docs = [

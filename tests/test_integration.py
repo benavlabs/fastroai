@@ -1,19 +1,17 @@
-"""Integration tests that use real AI APIs.
-
-These tests require OPENAI_API_KEY to be set in the environment.
-
-Run with: uv run pytest tests/test_integration.py -v
-
-Skip with: uv run pytest tests/ --ignore=tests/test_integration.py
-"""
+"""Integration tests that run FastroAI end to end without a real model provider."""
 # mypy: disable-error-code="var-annotated"
 
 import asyncio
-import os
+import logging
+import uuid
 from dataclasses import dataclass
 from typing import Any
 
 import pytest
+from pydantic_ai import Agent, RunContext
+from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCallPart, ToolReturnPart
+from pydantic_ai.models.function import AgentInfo, FunctionModel
+from pydantic_ai.usage import RequestUsage
 
 from fastroai import (
     BasePipeline,
@@ -29,194 +27,190 @@ from fastroai import (
     safe_tool,
 )
 
-# Marker for tests that require OpenAI API
-requires_openai = pytest.mark.skipif(
-    not os.environ.get("OPENAI_API_KEY"),
-    reason="OPENAI_API_KEY not set",
-)
+PRICED_MODEL = "pricebook-model"
 
 
-@requires_openai
-class TestFastroAgentIntegration:
-    """Integration tests for FastroAgent with real APIs."""
+class TestAgentUsageMapping:
+    """A real agent's usage reaches ChatResponse and its cost."""
 
-    async def test_simple_chat(self) -> None:
-        """Test simple chat with OpenAI."""
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="You are a helpful assistant. Be concise.",
+    @pytest.mark.usage_call_break
+    async def test_response_carries_the_model_usage_and_its_cost(self) -> None:
+        usage = RequestUsage(
+            input_tokens=1000,
+            output_tokens=200,
+            cache_read_tokens=300,
+            cache_write_tokens=40,
+            input_audio_tokens=7,
+            cache_audio_read_tokens=3,
+            details={"reasoning_tokens": 11},
         )
 
-        response = await agent.run("What is 2+2? Reply with just the number.")
+        def reply(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            return ModelResponse(parts=[TextPart("done")], usage=usage)
 
-        assert response.content is not None
-        assert "4" in response.content
-        assert response.input_tokens > 0
-        assert response.output_tokens > 0
-        assert response.cost_microcents > 0
-        assert response.processing_time_ms > 0
+        calculator = CostCalculator(pricing_overrides={PRICED_MODEL: {"input_per_mtok": 1.0, "output_per_mtok": 2.0}})
+        agent = FastroAgent(agent=Agent(FunctionModel(reply, model_name=PRICED_MODEL)), cost_calculator=calculator)
 
-    async def test_with_tracer(self) -> None:
-        """Test that tracing works with real API calls."""
-        tracer = SimpleTracer()
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Reply with one word.",
+        response = await agent.run("Summarize the upload.")
+
+        assert response.content == "done"
+        assert response.model == PRICED_MODEL
+        assert response.input_tokens == 1000
+        assert response.output_tokens == 200
+        assert response.total_tokens == 1200
+        assert response.cache_read_tokens == 300
+        assert response.cache_write_tokens == 40
+        assert response.input_audio_tokens == 7
+        assert response.cache_audio_read_tokens == 3
+        assert response.usage_details == {"reasoning_tokens": 11}
+        assert response.request_count == 1
+        assert response.tool_call_count == 0
+        assert response.cost_microcents == 1140
+        assert response.cost_microcents == calculator.calculate_cost(
+            model=PRICED_MODEL,
+            input_tokens=1000,
+            output_tokens=200,
+            cache_read_tokens=300,
+            cache_write_tokens=40,
+            input_audio_tokens=7,
+            cache_audio_read_tokens=3,
         )
 
-        response = await agent.run("Say 'hello'", tracer=tracer)
 
-        assert response.trace_id is not None
-        assert len(response.trace_id) == 36  # UUID format
+class TestAgentTracing:
+    """A tracer passed to run() records each run under the response's trace id."""
 
-    async def test_streaming(self) -> None:
-        """Test streaming responses."""
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Be concise.",
+    @pytest.mark.usage_call_break
+    async def test_each_run_logs_its_span_and_metrics_under_its_trace_id(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        usages = iter(
+            [RequestUsage(input_tokens=100, output_tokens=20), RequestUsage(input_tokens=300, output_tokens=40)]
         )
 
-        chunks = []
-        async for chunk in agent.run_stream("Count from 1 to 3"):
-            chunks.append(chunk)
+        def reply(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            return ModelResponse(parts=[TextPart("done")], usage=next(usages))
 
-        assert len(chunks) > 1
-        assert chunks[-1].is_final is True
-        assert chunks[-1].usage_data is not None
-        assert chunks[-1].usage_data.input_tokens > 0
+        calculator = CostCalculator(pricing_overrides={PRICED_MODEL: {"input_per_mtok": 1.0, "output_per_mtok": 2.0}})
+        agent = FastroAgent(agent=Agent(FunctionModel(reply, model_name=PRICED_MODEL)), cost_calculator=calculator)
+        tracer = SimpleTracer(logger=logging.getLogger("tests.agent_tracing"))
+        caplog.set_level(logging.DEBUG, logger="tests.agent_tracing")
 
-    async def test_with_message_history(self) -> None:
-        """Test conversation continuity with message history."""
-        from pydantic_ai.messages import (
-            ModelRequest,
-            ModelResponse,
-            TextPart,
-            UserPromptPart,
-        )
+        first = await agent.run("First question.", tracer=tracer)
+        second = await agent.run("Second question.", tracer=tracer)
 
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="You are a helpful assistant. Be very concise.",
-            temperature=0.0,
-        )
+        assert first.trace_id != second.trace_id
+        assert {str(uuid.UUID(first.trace_id)), str(uuid.UUID(second.trace_id))} == {first.trace_id, second.trace_id}
+        records = [vars(record) for record in caplog.records if record.name == "tests.agent_tracing"]
+        assert {record.get("trace_id") for record in records} == {first.trace_id, second.trace_id}
+        for response, (input_tokens, output_tokens, cost) in ((first, (100, 20, 140)), (second, (300, 40, 380))):
+            mine = [record for record in records if record.get("trace_id") == response.trace_id]
+            spans = [record["span"] for record in mine if "span" in record]
+            metrics = sorted(
+                (record["metric_name"], record["metric_value"]) for record in mine if "metric_name" in record
+            )
+            assert spans == ["fastroai.agent.run", "fastroai.agent.run"]
+            assert metrics == sorted(
+                [("input_tokens", input_tokens), ("output_tokens", output_tokens), ("cost_microcents", cost)]
+            )
+            assert all(type(value) is int for _, value in metrics)
+            assert (response.input_tokens, response.output_tokens, response.cost_microcents) == (
+                input_tokens,
+                output_tokens,
+                cost,
+            )
 
-        # First message
-        response1 = await agent.run("My name is Alice. Remember it.")
 
-        # Build message history using PydanticAI format
-        message_history: list[ModelRequest | ModelResponse] = [
-            ModelRequest(parts=[UserPromptPart(content="My name is Alice. Remember it.")]),
-            ModelResponse(parts=[TextPart(content=response1.content)]),
-        ]
+class TestAgentDepsToTools:
+    """Deps passed to run() reach a FastroAgent toolset, and the tool's result reaches the model."""
 
-        # Second message with history
-        response2 = await agent.run("What is my name?", message_history=message_history)
-
-        assert "alice" in response2.content.lower()
-
-    async def test_with_dependencies(self) -> None:
-        """Test passing dependencies to agent for tools."""
-        from pydantic_ai import RunContext
-
+    @pytest.mark.usage_call_break
+    async def test_deps_reach_the_tool_and_its_result_reaches_the_model(self) -> None:
         @dataclass
-        class MyDeps:
-            secret_code: str
+        class UploadDeps:
+            access_code: str
 
         @safe_tool(timeout=5)
-        async def get_secret(ctx: RunContext[MyDeps]) -> str:
-            """Retrieve the secret code from the system."""
-            return f"The secret code is: {ctx.deps.secret_code}"
+        async def get_access_code(ctx: RunContext[UploadDeps]) -> str:
+            """Return the access code for the current upload."""
+            return f"access code {ctx.deps.access_code}"
 
-        class SecretToolset(SafeToolset):
+        class UploadToolset(SafeToolset):
             def __init__(self) -> None:
-                super().__init__(tools=[get_secret], name="secrets")
+                super().__init__(tools=[get_access_code], name="uploads")
 
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="You can retrieve secret codes using the get_secret tool.",
-            toolsets=[SecretToolset()],
-        )
+        tool_results_seen: list[list[Any]] = []
+
+        def reply(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            results = [
+                part.content for message in messages for part in message.parts if isinstance(part, ToolReturnPart)
+            ]
+            tool_results_seen.append(results)
+            if not results:
+                return ModelResponse(parts=[ToolCallPart("get_access_code", {})])
+            return ModelResponse(parts=[TextPart(f"The upload uses {results[0]}.")])
+
+        agent = FastroAgent(model="test", toolsets=[UploadToolset()])
 
         response = await agent.run(
-            "What is the secret code?",
-            deps=MyDeps(secret_code="ALPHA-7742"),
+            "Which access code does this upload use?",
+            deps=UploadDeps(access_code="ALPHA-7742"),
+            model=FunctionModel(reply, model_name=PRICED_MODEL),
         )
 
-        assert "ALPHA-7742" in response.content
+        assert tool_results_seen == [[], ["access code ALPHA-7742"]]
+        assert response.content == "The upload uses access code ALPHA-7742."
+        assert [call["tool_name"] for call in response.tool_calls] == ["get_access_code"]
+        assert response.model == PRICED_MODEL
 
-    async def test_tool_call_tracking(self) -> None:
-        """Test that tool_call_count and request_count are tracked correctly."""
 
+class TestAgentToolCallCounts:
+    """Two tool calls in one model response are both run, counted and reported."""
+
+    @pytest.mark.usage_call_break
+    async def test_two_tool_calls_in_one_response(self) -> None:
         @safe_tool(timeout=5)
         async def add_numbers(a: int, b: int) -> str:
             """Add two numbers together."""
-            return f"The sum is {a + b}"
+            return f"sum {a + b}"
 
         @safe_tool(timeout=5)
         async def multiply_numbers(a: int, b: int) -> str:
             """Multiply two numbers together."""
-            return f"The product is {a * b}"
+            return f"product {a * b}"
 
         class MathToolset(SafeToolset):
             def __init__(self) -> None:
                 super().__init__(tools=[add_numbers, multiply_numbers], name="math")
 
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Use the math tools to answer questions. Always use tools, don't calculate yourself.",
-            toolsets=[MathToolset()],
-        )
+        tool_results_seen: list[list[Any]] = []
 
-        response = await agent.run("What is 5 + 3?")
+        def reply(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            results = [
+                part.content for message in messages for part in message.parts if isinstance(part, ToolReturnPart)
+            ]
+            tool_results_seen.append(results)
+            if not results:
+                return ModelResponse(
+                    parts=[
+                        ToolCallPart("add_numbers", {"a": 5, "b": 3}),
+                        ToolCallPart("multiply_numbers", {"a": 4, "b": 6}),
+                    ]
+                )
+            return ModelResponse(parts=[TextPart(" and ".join(results))])
 
-        # Should have made at least 1 tool call
-        assert response.tool_call_count >= 1, f"Expected tool_call_count >= 1, got {response.tool_call_count}"
-        # Should have made at least 2 requests (initial + after tool response)
-        assert response.request_count >= 2, f"Expected request_count >= 2, got {response.request_count}"
-        # Should have tool call details
-        assert len(response.tool_calls) >= 1, "Expected tool_calls list to have items"
-        assert response.tool_calls[0]["tool_name"] == "add_numbers"
+        agent = FastroAgent(model="test", toolsets=[MathToolset()])
 
-    async def test_multiple_tool_calls_tracking(self) -> None:
-        """Test tracking when agent makes multiple tool calls."""
+        response = await agent.run("What is 5 + 3, and 4 * 6?", model=FunctionModel(reply, model_name=PRICED_MODEL))
 
-        @safe_tool(timeout=5)
-        async def get_price(item: str) -> str:
-            """Get the price of an item."""
-            prices = {"apple": 1.50, "banana": 0.75, "orange": 2.00}
-            return f"{item} costs ${prices.get(item, 0):.2f}"
-
-        class PriceToolset(SafeToolset):
-            def __init__(self) -> None:
-                super().__init__(tools=[get_price], name="prices")
-
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Use the get_price tool to answer price questions. Call the tool for each item.",
-            toolsets=[PriceToolset()],
-        )
-
-        response = await agent.run("How much do an apple and a banana cost?")
-
-        # Should have made at least 2 tool calls (one for each item)
-        # Note: The model might call them in one go or separately
-        assert response.tool_call_count >= 1, f"Expected tool_call_count >= 1, got {response.tool_call_count}"
-        assert response.request_count >= 2, f"Expected request_count >= 2, got {response.request_count}"
-
-    async def test_usage_details_populated(self) -> None:
-        """Test that usage_details dict is populated (for models that provide it)."""
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Be concise.",
-        )
-
-        response = await agent.run("Say hello")
-
-        # usage_details should exist (may be empty for some models)
-        assert isinstance(response.usage_details, dict)
-        # Basic usage should always be tracked
-        assert response.input_tokens > 0
-        assert response.output_tokens > 0
+        assert tool_results_seen == [[], ["sum 8", "product 24"]]
+        assert response.content == "sum 8 and product 24"
+        assert response.tool_call_count == 2
+        assert response.request_count == 2
+        assert [(call["tool_name"], call["args"]) for call in response.tool_calls] == [
+            ("add_numbers", {"a": 5, "b": 3}),
+            ("multiply_numbers", {"a": 4, "b": 6}),
+        ]
 
 
 class TestSafeToolIntegration:
@@ -416,58 +410,6 @@ class TestPipelineIntegration:
         result2 = await pipeline.execute({"message": "my name is Alice"}, None)
         assert result2.stopped_early is False
 
-    @requires_openai
-    async def test_with_ai_step(self) -> None:
-        """Test pipeline with .as_step()."""
-        greet_agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Generate a one-word greeting.",
-            temperature=0.0,
-        )
-        greet_step = greet_agent.as_step("Say hello")
-
-        pipeline: Pipeline[None, dict[str, str], str] = Pipeline(
-            name="greeting_pipeline",
-            steps={"greet": greet_step},
-        )
-
-        result = await pipeline.execute({}, None)
-
-        assert result.output is not None
-        assert len(result.output) > 0
-        assert result.usage is not None
-        assert result.usage.total_cost_microcents > 0
-
-    @requires_openai
-    async def test_agent_step_with_tools(self) -> None:
-        """Test .as_step() with tool access."""
-
-        @safe_tool(timeout=5)
-        async def get_weather(city: str) -> str:
-            """Get weather for a city."""
-            return f"Weather in {city}: Sunny, 22°C"
-
-        class WeatherToolset(SafeToolset):
-            def __init__(self) -> None:
-                super().__init__(tools=[get_weather], name="weather")
-
-        weather_agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Use the weather tool to answer questions.",
-            toolsets=[WeatherToolset()],
-        )
-        weather_step = weather_agent.as_step(lambda ctx: f"What's the weather in {ctx.get_input('city')}?")
-
-        pipeline: Pipeline[None, dict[str, str], str] = Pipeline(
-            name="weather_pipeline",
-            steps={"weather": weather_step},
-        )
-
-        result = await pipeline.execute({"city": "Paris"}, None)
-
-        assert result.output is not None
-        assert "paris" in result.output.lower() or "sunny" in result.output.lower() or "22" in result.output
-
 
 class TestPipelineRoutingIntegration:
     """Integration tests for BasePipeline routing."""
@@ -513,128 +455,6 @@ class TestPipelineRoutingIntegration:
         # Test routing to complex
         result2 = await router.execute({"amount": 5000}, None)
         assert result2.output == "complex_result"
-
-
-@requires_openai
-class TestCostCalculatorIntegration:
-    """Integration tests for CostCalculator accuracy."""
-
-    async def test_cost_calculation_matches_usage(self) -> None:
-        """Verify cost calculation uses actual token counts."""
-        agent = FastroAgent(model="openai:gpt-4o-mini")
-        calculator = CostCalculator()
-
-        response = await agent.run("Say 'test'")
-
-        expected_cost = calculator.calculate_cost(
-            model="gpt-4o-mini",
-            input_tokens=response.input_tokens,
-            output_tokens=response.output_tokens,
-        )
-
-        assert response.cost_microcents == expected_cost
-
-
-@requires_openai
-class TestEndToEndWorkflow:
-    """End-to-end workflow tests."""
-
-    async def test_full_workflow_with_tracing(self) -> None:
-        """Test complete workflow: agent + tracing + cost tracking."""
-        tracer = SimpleTracer()
-
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="You are a math tutor. Be very brief.",
-            temperature=0.0,
-        )
-
-        response1 = await agent.run("What is 5+5?", tracer=tracer)
-        assert "10" in response1.content
-
-        response2 = await agent.run("What is 3*4?", tracer=tracer)
-        assert "12" in response2.content
-
-        total_cost = response1.cost_microcents + response2.cost_microcents
-        assert total_cost > 0
-        assert response1.trace_id != response2.trace_id
-
-    async def test_multi_step_pipeline_with_different_models(self) -> None:
-        """Test pipeline using different models for different steps."""
-        extract_agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Extract the main topic in one word.",
-        )
-        extract_step = extract_agent.as_step(lambda ctx: ctx.get_input("text"))
-
-        compose_agent = FastroAgent(
-            model="openai:gpt-4o-mini",  # Could use gpt-4o for quality
-            system_prompt="Write a haiku about the given topic.",
-        )
-        compose_step = compose_agent.as_step(lambda ctx: f"Topic: {ctx.get_dependency('extract', str)}")
-
-        pipeline: Pipeline[None, dict[str, str], str] = Pipeline(
-            name="haiku_pipeline",
-            steps={
-                "extract": extract_step,
-                "compose": compose_step,
-            },
-            dependencies={
-                "compose": ["extract"],
-            },
-        )
-
-        result = await pipeline.execute({"text": "The ocean waves crash"}, None)
-
-        assert result.output is not None
-        assert len(result.output) > 0
-        assert result.usage is not None
-        assert "extract" in result.usage.steps
-        assert "compose" in result.usage.steps
-
-    async def test_complete_research_pipeline(self) -> None:
-        """Test a realistic multi-step research pipeline."""
-
-        @safe_tool(timeout=5)
-        async def search_database(query: str) -> str:
-            """Search internal database."""
-            return f"Found: {query} is a programming language created in 1991"
-
-        class SearchToolset(SafeToolset):
-            def __init__(self) -> None:
-                super().__init__(tools=[search_database], name="search")
-
-        research_agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Research the topic using available tools. Be concise.",
-            toolsets=[SearchToolset()],
-        )
-        research_step = research_agent.as_step(lambda ctx: f"Research: {ctx.get_input('topic')}")
-
-        summarize_agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Summarize in one sentence.",
-        )
-        summarize_step = summarize_agent.as_step(lambda ctx: f"Summarize: {ctx.get_dependency('research', str)}")
-
-        pipeline: Pipeline[None, dict[str, str], str] = Pipeline(
-            name="research_pipeline",
-            steps={
-                "research": research_step,
-                "summarize": summarize_step,
-            },
-            dependencies={
-                "summarize": ["research"],
-            },
-        )
-
-        tracer = SimpleTracer()
-        result = await pipeline.execute({"topic": "Python"}, None, tracer=tracer)
-
-        assert result.output is not None
-        assert result.usage is not None
-        assert result.usage.total_cost_microcents > 0
-        assert not result.stopped_early
 
 
 # ============================================================================
@@ -1292,112 +1112,3 @@ class TestRealWorldScenarios:
         )
         assert not result3.stopped_early
         assert result3.output == "Order processed for John"
-
-
-# ============================================================================
-# Cache Token Integration Tests
-# ============================================================================
-
-
-@requires_openai
-class TestCacheTokensIntegration:
-    """Integration tests for cache token tracking with OpenAI.
-
-    OpenAI supports prompt caching on gpt-4o models for prompts >= 1024 tokens.
-    """
-
-    async def test_cache_fields_populated(self) -> None:
-        """Test that cache token fields exist in response (may be 0 for short prompts)."""
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Be concise.",
-        )
-
-        response = await agent.run("Say hello")
-
-        # Fields should exist (may be 0 for prompts below caching threshold)
-        assert isinstance(response.cache_read_tokens, int)
-        assert isinstance(response.cache_write_tokens, int)
-        assert response.cache_read_tokens >= 0
-        assert response.cache_write_tokens >= 0
-
-    async def test_request_count_single_call(self) -> None:
-        """Test request_count is 1 for a simple call without tools."""
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Be concise.",
-        )
-
-        response = await agent.run("Say hello")
-
-        # Should be exactly 1 request for a simple call
-        assert response.request_count == 1
-
-    async def test_cache_tokens_with_long_prompt(self) -> None:
-        """Test cache tokens with a long system prompt that may trigger caching.
-
-        OpenAI requires prompts >= 1024 tokens for prompt caching to be eligible.
-        This test uses a long prompt and makes multiple calls to see if caching occurs.
-        """
-        # Create a long system prompt (aim for ~1500 tokens)
-        long_context = " ".join([f"Rule {i}: Always be helpful, accurate, and informative." for i in range(200)])
-        system_prompt = f"""You are an expert assistant with the following comprehensive guidelines:
-
-{long_context}
-
-Remember to always be concise in your final responses."""
-
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt=system_prompt,
-        )
-
-        # First call
-        response1 = await agent.run("Say 'hello'")
-        assert response1.input_tokens > 0
-
-        # Second call with same system prompt
-        response2 = await agent.run("Say 'world'")
-        assert response2.input_tokens > 0
-
-        # Print for debugging
-        print(f"\nResponse 1: input={response1.input_tokens}, cache_read={response1.cache_read_tokens}")
-        print(f"Response 2: input={response2.input_tokens}, cache_read={response2.cache_read_tokens}")
-
-        # Verify cache fields are integers (caching may or may not occur)
-        assert isinstance(response1.cache_read_tokens, int)
-        assert isinstance(response2.cache_read_tokens, int)
-
-        # Both should have valid costs
-        assert response1.cost_microcents > 0
-        assert response2.cost_microcents > 0
-
-    async def test_all_new_fields_populated(self) -> None:
-        """Test that all new usage fields are properly populated."""
-        agent = FastroAgent(
-            model="openai:gpt-4o-mini",
-            system_prompt="Be concise.",
-        )
-
-        response = await agent.run("What is 2+2?")
-
-        # All new fields should be populated with valid values
-        assert isinstance(response.cache_read_tokens, int) and response.cache_read_tokens >= 0
-        assert isinstance(response.cache_write_tokens, int) and response.cache_write_tokens >= 0
-        assert isinstance(response.input_audio_tokens, int) and response.input_audio_tokens >= 0
-        assert isinstance(response.output_audio_tokens, int) and response.output_audio_tokens >= 0
-        assert isinstance(response.cache_audio_read_tokens, int) and response.cache_audio_read_tokens >= 0
-        assert isinstance(response.request_count, int) and response.request_count >= 1
-        assert isinstance(response.tool_call_count, int) and response.tool_call_count >= 0
-        assert isinstance(response.usage_details, dict)
-
-        # Print summary for debugging
-        print("\nUsage Summary:")
-        print(f"  input_tokens: {response.input_tokens}")
-        print(f"  output_tokens: {response.output_tokens}")
-        print(f"  cache_read_tokens: {response.cache_read_tokens}")
-        print(f"  cache_write_tokens: {response.cache_write_tokens}")
-        print(f"  request_count: {response.request_count}")
-        print(f"  tool_call_count: {response.tool_call_count}")
-        print(f"  cost_microcents: {response.cost_microcents}")
-        print(f"  cost_dollars: ${response.cost_dollars:.6f}")
